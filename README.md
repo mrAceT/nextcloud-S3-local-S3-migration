@@ -32,6 +32,7 @@ $CONFIG = array (
 4. click 'next'
 5. follow the instructions..
 
+# A friendly note before you start migrating..
 Officially it is not supported to change the primary storage in Nextcloud.
 However, it's very well possible and these unofficial scripts will help you in doing so.
 
