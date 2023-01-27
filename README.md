@@ -93,7 +93,7 @@ I built this to be able to migrate if the one or the other is needed for what ev
 You might have that same reason, so here it is!
 **Like the work?** You'll be surprised how much time goes into things like this.. 
 
-Be my hero, think about the time this script saved you, and (offcourse) how happy you are now that you migrated this smootly.
+Be my hero, think about the time this script saved you, and (offcourse) how happy you are now that you migrated this smoothly.
 Support my work, buy me a cup of coffee, give what its worth to you, or give me half the time this script saved you ;)
 - [paypal](https://paypal.me/eesgertoering)
 - [geef.nl](https://www.geef.nl/en/donate?action=15544) (iDeal, Dutch)
