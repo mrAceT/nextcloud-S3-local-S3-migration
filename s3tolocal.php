@@ -401,34 +401,3 @@ function occ($OCC_BASE,$OCC_COMMAND) {
   
   return $result.$process."\n";
 }
-
-#########################################################################################
-function recursive_copy($src,$dst) {
-  $dir = opendir($src);
-  @mkdir($dst);
-  while( $file = readdir($dir) ) {
-    if ( $file != '.'
-     &&  $file != '..' ) {
-      if ( is_dir($src . DIRECTORY_SEPARATOR . $file) ) {
-        recursive_copy($src . DIRECTORY_SEPARATOR . $file,
-                       $dst . DIRECTORY_SEPARATOR . $file);
-      } else {
-
-        $copy = 1;
-        if(file_exists($dst . DIRECTORY_SEPARATOR . $file)){
-          if (filemtime($src . DIRECTORY_SEPARATOR . $file) > filemtime($dst . DIRECTORY_SEPARATOR . $file) ) {
-            unlink($dst . DIRECTORY_SEPARATOR . $file);
-          }
-          else { $copy = 0; }
-        }
-        if ($copy) {
-          copy($src . DIRECTORY_SEPARATOR . $file,
-               $dst . DIRECTORY_SEPARATOR . $file);
-        }
-
-      }
-    }
-  }
-  closedir($dir);
-}
-
