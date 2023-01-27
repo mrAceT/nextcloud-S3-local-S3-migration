@@ -9,25 +9,25 @@ To start out with 'S3' from the start these are the steps I took:
 1. download [setup-nextcloud.php](https://github.com/nextcloud/web-installer/blob/master/setup-nextcloud.php)
 2. upload the file and execute it (for current folder use . )
 3. **before** step 2: go to folder'config' and add file storage.config.php with
-> <?php
-> $CONFIG = array (
->   'objectstore' => array(
->           'class' => 'OC\\Files\\ObjectStore\\S3',
->           'arguments' => array(
->                   'bucket' => '**bucket**', // your bucket name
->                   'autocreate' => true,
->                   'key' => '**key', // your key
->                   'secret' => '**secret**', // your secret
->                   'hostname' => '**host**', // your host
->                   'port' => 443,
->                   'use_ssl' => true,
->                   'region' => '**region**', // your region
->                   'use_path_style' => false
->   // required for some non Amazon S3 implementations
->   // 'use_path_style' => true
->           ),
->   ),
-> );
+> <?php  
+> $CONFIG = array (  
+>   'objectstore' => array(  
+>           'class' => 'OC\\Files\\ObjectStore\\S3',  
+>           'arguments' => array(  
+>                   'bucket' => '**bucket**', // your bucket name  
+>                   'autocreate' => true,  
+>                   'key' => '**key', // your key  
+>                   'secret' => '**secret**', // your secret  
+>                   'hostname' => '**host**', // your host  
+>                   'port' => 443,  
+>                   'use_ssl' => true,  
+>                   'region' => '**region**', // your region  
+>                   'use_path_style' => false  
+>   // required for some non Amazon S3 implementations  
+>   // 'use_path_style' => true  
+>           ),  
+>   ),  
+> );  
 4. click 'next'
 5. follow the instructions..
 
