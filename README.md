@@ -87,6 +87,19 @@ If everything worked you might want to delete the data in data folder.
 Also you probably want to delete this script (and the 'storage.config.php') after running it.
 If all went as it should the config data in 'storage.config.php' is included in the 'config/config.php'. Then the 'storage.config.php' can also be removed from your config folder (no sense in having a double config)
 
+## S3 sanity check!
+When you
+1. have S3 as your primary storage
+2. set $TEST to 0
+3. **optionally** set $SET_MAINTENANCE to 0
+4. (have set/checked all the other variables..)
+
+Then the script 'localtos3.php' will look for entries in S3 and not in the database and vice versa **and remove them**.
+This can happen sometimes upon removing an account, preview files might not get removed.. stuff like that..
+
+## S3 preview cleanup!
+There is some initial work in 'localtos3.php' for clearing and cleaning up previews.. that is a work in progress, use at your own risc!
+
 # I give to you, you..
 
 I built this to be able to migrate if the one or the other is needed for what ever reason I could have in the future.
