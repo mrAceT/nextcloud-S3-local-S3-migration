@@ -16,7 +16,7 @@ $CONFIG = array (
           'arguments' => array(
                   'bucket' => '**bucket**', // your bucket name
                   'autocreate' => true,
-                  'key' => '**key', // your key
+                  'key' => '**key**', // your key
                   'secret' => '**secret**', // your secret
                   'hostname' => '**host**', // your host
                   'port' => 443,
@@ -35,6 +35,10 @@ $CONFIG = array (
 # A friendly note before you start migrating..
 Officially it is not supported to change the primary storage in Nextcloud.
 However, it's very well possible and these unofficial scripts will help you in doing so.
+
+**TIP**: When you can, install a “test nextcloud”, configured just like your “real one” and go through the steps.. I have tried to make it al as generic as possible, but you never know.. and I wouldn’t want to be the cause of your data loss…
+
+In theory nothing much could go wrong, as the script does not remove your local/S3 data and only uploads/downloads it all to your s3 bucket/local drive and does database changes (which are backed up)..but there might just be that one thing I didn’t think of.. or did that little alteration that I haven’t tested..
 
 :warning: These scripts are written with the best of intentions and have both been tested thoroughly.
 **But** it may fail and lead to data loss. **Use at your own risk!** :warning:
