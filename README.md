@@ -109,7 +109,8 @@ This can happen sometimes upon removing an account, preview files might not get 
 Inspired upon [otherguy/nextcloud-cleanup](https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php). I have not had this problem, so can not test.. => check only!
 
 - preview cleanup.
-There is some initial work for clearing and cleaning up previews.. that is a work in progress, use at your own risc!
+Removes previews of files that no longer exist.
+There is some initial work for clearing previews.. that is a work in progress, use at your own risc!
 
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
