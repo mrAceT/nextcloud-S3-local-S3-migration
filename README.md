@@ -105,13 +105,13 @@ Then the script 'localtos3.php' will:
 - look for entries in S3 and not in the database and vice versa **and remove them**.
 This can happen sometimes upon removing an account, preview files might not get removed.. stuff like that..
 
-- check for canceled uploads
+- check for canceled uploads.
 Inspired upon [otherguy/nextcloud-cleanup](https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php). I have not had this problem, so can not test.. => check only!
 
-The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
+- preview cleanup.
+There is some initial work for clearing and cleaning up previews.. that is a work in progress, use at your own risc!
 
-## S3 preview cleanup!
-There is some initial work in 'localtos3.php' for clearing and cleaning up previews.. that is a work in progress, use at your own risc!
+The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
 v0.32 more (size) info + added check for canceled uploads
