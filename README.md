@@ -114,7 +114,7 @@ There is some initial work for clearing and cleaning up previews.. that is a wor
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
-v0.32 more (size) info + added check for canceled uploads
+v0.32 more (size) info + added check for canceled uploads\
 v0.31 first github release
 
 # I give to you, you..
