@@ -14,7 +14,7 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud local to S3 version 0.31\n";
+echo "\n Migration tool for Nextcloud local to S3 version 0.32\n";
 echo "\n Reading config...";
 
 $PREVIEW_MAX_AGE = 0; // max age of preview images (EXPERIMENTAL! 0 = no del)
@@ -27,8 +27,9 @@ $PATH_NEXTCLOUD = $PATH_BASE.'/public_html'; // Path of the public Nextcloud dir
 
 $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database (you must create it yourself..)
 
-// don't forget this one -.
-$OCC_BASE       = 'sudo -u clouduser php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+$OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+// don't forget this one --. (if you don't run the script as the 'clouduser', see first comment at the top)
+#$OCC_BASE       = 'sudo -u clouduser php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 
 $TEST = 2; //'admin';//'appdata_oczvcie123w4';
 // set to 0 for LIVE!!
@@ -133,17 +134,18 @@ if ($result = $mysqli->query("SELECT * FROM `oc_storages` WHERE `id` LIKE 'objec
 }
 $result->free_result();
 
-  
-echo "\n\n######################################################################################### ".$TEST;
+echo "\n".
+     "\n######################################################################################### ".$TEST;
 if (empty($TEST) ) {
   echo "\n\nNOTE: THIS IS THE REAL THING!!\n";
 } else {
   echo empty($TEST)          ? '' : "\nWARNING: you are in test mode (".$TEST.")";
 }
-
 echo "\nBase init complete, continue?";
 $getLine = '';
 while ($getLine == ''): $getLine = fgets( fopen("php://stdin","r") ); endwhile;
+
+echo "\n######################################################################################### ";
 
 if ($DO_FILES_CLEAN) {
   echo "\nRunning cleanup (should not be necessary but cannot hurt)";
@@ -233,10 +235,10 @@ if ($PREVIEW_MAX_AGE > 0) {
 } else {
   echo " (\$PREVIEW_MAX_AGE = 0 days, stats only)";
 }
-$PREVIEW_NOW_COUNT= 0; $PREVIEW_NOW_SIZE = 0;
-$PREVIEW_DEL_COUNT= 0; $PREVIEW_DEL_SIZE = 0;
-$PREVIEW_REM_COUNT= 0; $PREVIEW_REM_SIZE = 0;
-$PREVIEW_1YR_COUNT= 0; $PREVIEW_1YR_SIZE = 0;
+$PREVIEW_NOW = [0,0];
+$PREVIEW_DEL = [0,0];
+$PREVIEW_REM = [0,0];
+$PREVIEW_1YR = [0,0];
 
 if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`size`, `FC`.`storage_mtime` FROM".
                              " `oc_filecache` as `FC`,".
@@ -281,8 +283,8 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
         }
         $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
       }
-      $PREVIEW_DEL_SIZE += $row['size'];
-      $PREVIEW_DEL_COUNT++;
+      $PREVIEW_DEL[1] += $row['size'];
+      $PREVIEW_DEL[0]++;
     } else {
       if (preg_match('/\/preview\/([a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/)?([0-9]+)\/[^\/]+$/',$path,$matches)) {
         #echo "check fileID".$matches[2].' ';
@@ -296,15 +298,15 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
           } else {
             echo "\nfileID ".$matches[2]." has a preview, but the source file does not exist, would delete the preview (fileID ".$row['fileid'].")";
           }
-          $PREVIEW_REM_COUNT++;
-          $PREVIEW_REM_SIZE += $row['size'];
+          $PREVIEW_REM[0]++;
+          $PREVIEW_REM[1] += $row['size'];
         } else {
           if ($PREVIEW_1YR_AGEU > $row['storage_mtime'] ) {
-            $PREVIEW_1YR_SIZE += $row['size'];
-            $PREVIEW_1YR_COUNT++;
+            $PREVIEW_1YR[1] += $row['size'];
+            $PREVIEW_1YR[0]++;
           }
-          $PREVIEW_NOW_SIZE += $row['size'];
-          $PREVIEW_NOW_COUNT++;
+          $PREVIEW_NOW[1] += $row['size'];
+          $PREVIEW_NOW[0]++;
         }
         $result2->free_result();
       } else {
@@ -324,32 +326,33 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
   $result->free_result();
 }
 
-if ($PREVIEW_DEL_COUNT > 0
- || $PREVIEW_REM_COUNT > 0) {
-  echo "\nappdata preview size before :".sprintf('% 8.2f',($PREVIEW_NOW_SIZE+$PREVIEW_DEL_SIZE)/1024/1024)." Mb\t(".($PREVIEW_NOW_COUNT+$PREVIEW_DEL_COUNT)." files)";
-  echo "\nappdata preview > 1 year old:".sprintf('% 8.2f',($PREVIEW_1YR_SIZE)/1024/1024)." Mb\t(".$PREVIEW_1YR_COUNT." files)";
-  echo "\nappdata preview size cleared:".sprintf('% 8.2f',($PREVIEW_DEL_SIZE)/1024/1024)." Mb\t(".$PREVIEW_DEL_COUNT." files".($PREVIEW_MAX_DEL<1?' MAX DEL ':'').")";
-  echo "\nappdata preview size cleared:".sprintf('% 8.2f',($PREVIEW_DEL_SIZE)/1024/1024)." Mb\t(".$PREVIEW_DEL_COUNT." files".($PREVIEW_MAX_DEL<1?' MAX DEL ':'').")";
-  echo "\nappdata preview size now    :".sprintf('% 8.2f',($PREVIEW_NOW_SIZE)/1024/1024)." Mb\t(".$PREVIEW_NOW_COUNT." files";
-  if ($PREVIEW_NOW_SIZE+$PREVIEW_DEL_SIZE > 0 ) {
-    echo "/ -".floor(($PREVIEW_DEL_SIZE+$PREVIEW_REM_SIZE)/($PREVIEW_NOW_SIZE+$PREVIEW_DEL_SIZE)+.5)."%";
+if ($PREVIEW_DEL[0] > 0
+ || $PREVIEW_REM[0] > 0) {
+  echo "\nappdata preview size before :".sprintf('% 8.2f',($PREVIEW_NOW[1]+$PREVIEW_DEL[1])/1024/1024)." Mb\t(".($PREVIEW_NOW[0]+$PREVIEW_DEL[0])." files)";
+  echo "\nappdata preview > 1 year old:".sprintf('% 8.2f',($PREVIEW_1YR[1])/1024/1024)." Mb\t(".$PREVIEW_1YR[0]." files)";
+  echo "\nappdata preview size cleared:".sprintf('% 8.2f',($PREVIEW_DEL[1])/1024/1024)." Mb\t(".$PREVIEW_DEL[0]." files".($PREVIEW_MAX_DEL<1?' MAX DEL ':'').")";
+  echo "\nappdata preview size cleared:".sprintf('% 8.2f',($PREVIEW_DEL[1])/1024/1024)." Mb\t(".$PREVIEW_DEL[0]." files".($PREVIEW_MAX_DEL<1?' MAX DEL ':'').")";
+  echo "\nappdata preview size now    :".sprintf('% 8.2f',($PREVIEW_NOW[1])/1024/1024)." Mb\t(".$PREVIEW_NOW[0]." files";
+  if ($PREVIEW_NOW[1]+$PREVIEW_DEL[1] > 0 ) {
+    echo "/ -".floor(($PREVIEW_DEL[1]+$PREVIEW_REM[1])/($PREVIEW_NOW[1]+$PREVIEW_DEL[1])+.5)."%";
   }
   echo ")";
   if (!empty($TEST)) {
     echo "\n\nNOTE: in TEST-mode, no preview-data has been cleared!";
   }
 } else {
-  echo "\nappdata preview size        :".sprintf('% 8.2f',($PREVIEW_NOW_SIZE)/1024/1024)." Mb\t(".$PREVIEW_NOW_COUNT." files)";
-  echo "\nappdata preview > 1 year old:".sprintf('% 8.2f',($PREVIEW_1YR_SIZE)/1024/1024)." Mb\t(".$PREVIEW_1YR_COUNT." files)";
+  echo "\nappdata preview size        :".sprintf('% 8.2f',($PREVIEW_NOW[1])/1024/1024)." Mb\t(".$PREVIEW_NOW[0]." files)";
+  echo "\nappdata preview > 1 year old:".sprintf('% 8.2f',($PREVIEW_1YR[1])/1024/1024)." Mb\t(".$PREVIEW_1YR[0]." files)";
 }
 
 echo "\n";
 echo "\n#########################################################################################";
-echo "\ncheck files in S3... ";
+echo "\nread files in S3...";
 $objects = S3list($s3, $bucket);
 
-$objectIDs = array();
-$users     = array();
+$objectIDs     = array();
+$objectIDsSize = 0;
+$users         = array();
 
 if (is_string($objects)) {
   echo $objects; # error..
@@ -357,9 +360,9 @@ if (is_string($objects)) {
 }
 else {
   echo "\nObjects to process in S3: ".count($objects).' ';
-  $S3_removed = 0;
-  $S3_updated = 0;
-  $S3_skipped = 0;
+  $S3_removed = [0,0];
+  $S3_updated = [0,0];
+  $S3_skipped = [0,0];
 
   // Init progress
   $complete = count($objects);
@@ -373,7 +376,7 @@ else {
     $current++;
     $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . $object['LastModified'] . "\t";
 
-    if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime` FROM".
+    if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
                                  " `oc_filecache` AS `FC`,".
                                  " `oc_storages`  AS `ST`,".
                                  " `oc_mimetypes` AS `MT`".
@@ -400,7 +403,8 @@ else {
           $result_s3 =  S3del($s3, $bucket, $object['Key']);
           if ($showinfo) { echo 'S3del:'.$result_s3; }
         }
-        $S3_removed++;
+        $S3_removed[0]++;
+        $S3_removed[1]+=$object['Size'];
       }
       else { # one match, up to date?
         $row = $result->fetch_assoc();
@@ -437,17 +441,21 @@ else {
                                         ]);
                 if ($showinfo) { echo 'S3put:'.$result_s3; }
               }
-              $S3_updated++;
+              $S3_updated[0]++;
+              $S3_updated[1]+=$row['size'];
             } else {
               $objectIDs[ $row['fileid'] ] = 1;
+              $objectIDsSize+=$row['size'];
 #              if ($showinfo) { echo $infoLine."OK (".$row['fileid']." / ".(count($objectIDs)).")"; }
             }
           } else {
             $objectIDs[ $row['fileid'] ] = 1;
+            $objectIDsSize+=$row['size'];
 #            if ($showinfo) { echo $infoLine."OK-S3 (".$row['fileid']." / ".(count($objectIDs)).")"; }
           }
         } else {
-          $S3_skipped++;
+          $S3_skipped[0]++;
+          $S3_skipped[1]+=$row['size'];
 #          if ($showinfo) { echo "SKIP (TEST=$TEST)"; }
         }
       }
@@ -470,11 +478,11 @@ else {
     echo $prev;
   }
   if ($showinfo) { echo "\nNumber of objects in  S3: ".count($objects); }
-  echo "\nobjects removed from  S3: ".$S3_removed;
-  echo "\nobjects updated to    S3: ".$S3_updated;
-  echo "\nobjects skipped on    S3: ".$S3_skipped;
-  echo "\nobjects in sync on    S3: ".count($objectIDs);
-  if ($S3_removed+$S3_updated+$S3_skipped+count($objectIDs) - count($objects) != 0 ) {
+  echo "\nobjects removed from  S3: ".$S3_removed[0]   ."\t(".readableBytes($S3_removed[1]).")";
+  echo "\nobjects updated to    S3: ".$S3_updated[0]   ."\t(".readableBytes($S3_updated[1]).")";
+  echo "\nobjects skipped on    S3: ".$S3_skipped[0]   ."\t(".readableBytes($S3_skipped[1]).")";
+  echo "\nobjects in sync on    S3: ".count($objectIDs)."\t(".readableBytes($objectIDsSize).")";
+  if ($S3_removed[0]+$S3_updated[0]+$S3_skipped[0]+count($objectIDs) - count($objects) != 0 ) {
     echo "\n\nERROR: The numbers do not add up!?\n\n";
     die;
   }
@@ -484,7 +492,7 @@ echo "\n";
 echo "\n#########################################################################################";
 echo "\ncheck files in oc_filecache... ";
 
-if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime` FROM".
+if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
                              " `oc_filecache` AS `FC`,".
                              " `oc_storages`  AS `ST`,".
                              " `oc_mimetypes` AS `MT`".
@@ -510,7 +518,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
   $showinfo = !empty($TEST);
   $showinfo = 0;
   
-  $LOCAL_ADDED = 0;
+  $LOCAL_ADDED = [0,0];
   while ($row = $result->fetch_assoc()) {
     $current++;
 
@@ -548,7 +556,8 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
             }
             if ($showinfo) { echo "OK"; }
           }
-          $LOCAL_ADDED++;
+          $LOCAL_ADDED[0]++;
+          $LOCAL_ADDED[1]+=$row['size'];
         } else {
           echo "\n".$path." (id:".$row['fileid'].") DOES NOT EXIST?!\n";
           if (empty($TEST)) {
@@ -582,12 +591,68 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
     $prev = $new;
     echo $prev;
   }  
-  if (!empty($TEST) && 0) { echo "\nNumber of objects in oc_filecache: ".$result->num_rows; }
-  echo "\nFiles in oc_filecache added to S3: ".$LOCAL_ADDED;
+  echo "\nFiles in oc_filecache added to S3: ".$LOCAL_ADDED[0]."\t(".readableBytes($LOCAL_ADDED[1]).")";
 }
-
 echo "\nCopying files finished";
 
+echo "\n"; # inspiration source: https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php
+echo "\n#########################################################################################";
+echo "\ncheck for canceled uploads in oc_filecache...";
+echo "\n=> EXPERIMENTAL, I have not had this problem, so can not test.. => check only!";
+
+if (!$result = $mysqli->query("SELECT `oc_filecache`.`fileid`, `oc_filecache`.`path`, `oc_filecache`.`parent`, `oc_storages`.`id` AS `storage`, `oc_filecache`.`size`".
+                             " FROM `oc_filecache`".
+                             " LEFT JOIN `oc_storages` ON `oc_storages`.`numeric_id` = `oc_filecache`.`storage`".
+                             " WHERE `oc_filecache`.`parent` IN (".
+                             "   SELECT `fileid`".
+                             "   FROM `oc_filecache`".
+                             "   WHERE `parent` IN (SELECT fileid FROM `oc_filecache` WHERE `path`='uploads')".
+                             "   AND `storage_mtime` < UNIX_TIMESTAMP(NOW() - 24 * 60 * 60)".
+                             " ) AND `oc_storages`.`available` = 1")) {
+  echo "\nERROR: query pos 4";
+  die;
+} else {
+  $S3_removed = [0,0];
+  $S3_PARENTS = [];
+
+  while ($row = $result->fetch_assoc()) {
+    echo "\nCanceled upload: ".$row['path']." ( ".$row['size']." bytes)";
+    $S3_removed[0]++;
+    $S3_removed[1]+=$row['size'];
+    // Add parent object to array
+    $S3_PARENTS[] = $row['parent'];
+    if ( 1 ) {
+      echo ' EXPERIMENTAL: no deletion, only detection';
+    } else
+    if (!empty($TEST) && $TEST == 2) {
+      echo ' not removed ($TEST = 2)';
+    } else {
+      $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
+      if ($showinfo) { echo 'S3del:'.$result_s3; }
+      $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+    }
+  }
+  if ($S3_removed[0] > 0 ) {
+    echo "\nobjects removed from  S3: ".$S3_removed[0]."\t(".readableBytes($S3_removed[1]).")";
+    // Delete all parent objects from the db
+    $S3_PARENTS = array_unique($S3_PARENTS);
+    echo "\nremoving parents... (".count($S3_PARENTS)." database entries)";
+    foreach ($S3_PARENTS as $s3_parent) {
+      echo "\nparent obeject id: ".$s3_parent;
+      if ( 1 ) {
+        echo ' EXPERIMENTAL: no deletion, only detection';
+      } else
+      if (!empty($TEST) && $TEST == 2) {
+        echo ' not removed ($TEST = 2)';
+      } else {
+        $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$s3_parent);
+        echo ' removed';
+      }
+    }
+  }
+}
+
+#########################################################################################
 if (empty($TEST)) {
   $dashLine = "\n".
               "\n#########################################################################################";
@@ -621,7 +686,7 @@ if (empty($TEST)) {
   
   echo "\n\n#########################################################################################";
 
-  if ($PREVIEW_DEL_SIZE > 0 ) {
+  if ($PREVIEW_DEL[1] > 0 ) {
     echo "\nThere were preview images removed";
     echo "\nNOTE: you can optionally run occ preview:generate-all => pre generate previews, do install preview generator)\n";
   }
@@ -681,6 +746,9 @@ function S3list($s3, $bucket, $maxIteration = 10000000) {
     $marker = '';
     do {
       $result = $s3->listObjects(['Bucket' => $bucket, 'Marker' => $marker]);
+      
+      if (rand(0,100) > 75 ) { echo '.'; }
+      
       if ($result->get('Contents')) {
         $objects = array_merge($objects, $result->get('Contents'));
       }
@@ -762,4 +830,13 @@ function S3get($s3, $bucket, $vars = array() ) {
       return 'ERROR: '.$vars['Key'].' does not exist';
     }
   } catch (S3Exception $e) { return 'ERROR: ' . $e->getMessage(); }
+}
+
+#########################################################################################
+function readableBytes($bytes) {
+  if ($bytes == 0) { return "0 bytes"; }
+  $i = floor(log($bytes) / log(1024));
+  $sizes = array('bytes', 'kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb', 'Yb');
+  return sprintf('% 5.2f', $bytes / pow(1024, $i)) * 1 . ' ' . $sizes[$i];
+  #return sprintf('%.02F', $bytes / pow(1024, $i)) * 1 . ' ' . $sizes[$i];
 }
