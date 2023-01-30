@@ -66,6 +66,9 @@ With a litte luck the final run (with $TEST=0) can be done within a minute!
 If everything worked you might want to delete the backup folder and S3 instance manually.
 Also you probably want to delete this script after running it.
 
+### S3 to local version history
+v0.30 first github release
+
 ## local to S3
 It will transfer files from **local** based primary storage to a **S3** primary storage.
 
@@ -98,11 +101,21 @@ When you
 3. **optionally** set $SET_MAINTENANCE to 0
 4. (have set/checked all the other variables..)
 
-Then the script 'localtos3.php' will look for entries in S3 and not in the database and vice versa **and remove them**.
+Then the script 'localtos3.php' will:
+- look for entries in S3 and not in the database and vice versa **and remove them**.
 This can happen sometimes upon removing an account, preview files might not get removed.. stuff like that..
+
+- check for canceled uploads
+Inspired upon [otherguy/nextcloud-cleanup](https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php). I have not had this problem, so can not test.. => check only!
+
+The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ## S3 preview cleanup!
 There is some initial work in 'localtos3.php' for clearing and cleaning up previews.. that is a work in progress, use at your own risc!
+
+### local to S3 version history
+v0.32 more (size) info + added check for canceled uploads
+v0.31 first github release
 
 # I give to you, you..
 
