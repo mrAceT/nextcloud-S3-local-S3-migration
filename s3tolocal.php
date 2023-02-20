@@ -155,7 +155,7 @@ if(file_exists($PATH_BACKUP.'/config.php')){
   }
   else {
     echo 'not needed';
-    $copy = 1;
+    $copy = 0;
   }
 }
 if ($copy) {
