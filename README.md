@@ -115,7 +115,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
-v0.33 some improvements on 'preview management'
+v0.33 some improvements on 'preview management'\
 v0.32 more (size) info + added check for canceled uploads\
 v0.31 first github release
 
