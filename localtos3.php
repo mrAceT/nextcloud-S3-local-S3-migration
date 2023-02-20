@@ -14,10 +14,10 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud local to S3 version 0.32\n";
+echo "\n Migration tool for Nextcloud local to S3 version 0.33\n";
 echo "\n Reading config...";
 
-$PREVIEW_MAX_AGE = 0; // max age of preview images (EXPERIMENTAL! 0 = no del)
+$PREVIEW_MAX_AGE = 0; // max age (days) of preview images (EXPERIMENTAL! 0 = no del)
 $PREVIEW_MAX_DEL = 0.005; // max amount of previews to delete at a time (when < 1 & > 0 => percentage! )..
 
 // Note: Preferably use absolute path without trailing directory separators
@@ -229,12 +229,13 @@ if ($PREVIEW_MAX_AGE > 0) {
   echo " > clear before ".$PREVIEW_MAX_AGEU->format( 'd-m-Y' )." (U:".$PREVIEW_MAX_AGEU->format( 'U' ).")";
   $PREVIEW_MAX_AGEU = $PREVIEW_MAX_AGEU->format( 'U' );
 
-  $PREVIEW_1YR_AGEU = new DateTime(); // For today/now, don't pass an arg.
-  $PREVIEW_1YR_AGEU->modify("-1year");
-  $PREVIEW_1YR_AGEU = $PREVIEW_1YR_AGEU->format( 'U' );
 } else {
   echo " (\$PREVIEW_MAX_AGE = 0 days, stats only)";
 }
+$PREVIEW_1YR_AGEU = new DateTime(); // For today/now, don't pass an arg.
+$PREVIEW_1YR_AGEU->modify("-1year");
+$PREVIEW_1YR_AGEU = $PREVIEW_1YR_AGEU->format( 'U' );
+
 $PREVIEW_NOW = [0,0];
 $PREVIEW_DEL = [0,0];
 $PREVIEW_REM = [0,0];
@@ -281,7 +282,10 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
         if(file_exists($path) && is_file($path)){
           unlink($path);
         }
+        $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
         $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+      } else {
+        echo "\nfileID ".$matches[2]." has a preview older then the set \$PREVIEW_MAX_AGE";
       }
       $PREVIEW_DEL[1] += $row['size'];
       $PREVIEW_DEL[0]++;
@@ -294,6 +298,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
             if(file_exists($path) && is_file($path)){
               unlink($path);
             }
+            $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
             $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
           } else {
             echo "\nfileID ".$matches[2]." has a preview, but the source file does not exist, would delete the preview (fileID ".$row['fileid'].")";
@@ -310,8 +315,8 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
         }
         $result2->free_result();
       } else {
-        echo "\n\nERROR:  path format not as expected (".$row['fileid']." : $path)\n";
-        echo "\tremove the database entry..";
+        echo "\n\nERROR:  path format not as expected (".$row['fileid']." : $path)";
+        echo "\n\tremove the database entry..";
         if (empty($TEST)) {
           $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
         }
