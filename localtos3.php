@@ -13,8 +13,12 @@
 # runuser -u clouduser -- composer require aws/aws-sdk-php
 use Aws\S3\S3Client;
 
+# uncomment this for large file uploads (Amazon advises this voor 100Mb+ files)
+#use Aws\S3\MultipartUploader;
+#$MULTIPART_THRESHOLD = 500; #Megabytes
+
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud local to S3 version 0.33\n";
+echo "\n Migration tool for Nextcloud local to S3 version 0.34\n";
 echo "\n Reading config...";
 
 $PREVIEW_MAX_AGE = 0; // max age (days) of preview images (EXPERIMENTAL! 0 = no del)
@@ -780,23 +784,36 @@ function S3put($s3, $bucket, $vars = array() ) {
       return 'ERROR: S3put($cms, $bucket, $vars)';      
     }
   }
-  if (empty($vars['Bucket'])) { $vars['Bucket'] = $bucket; }
+  if (empty($vars['Bucket'])     ) { $vars['Bucket'] = $bucket; }
   if (empty($vars['Key'])
    && !empty($vars['SourceFile'])) { $vars['Key'] = $vars['SourceFile']; }
+  if (empty($vars['ACL'])        ) { $vars['Key'] = 'private'; }
 
-  if (empty($vars['Bucket'])) { return 'ERROR: no Bucket'; }
-  if (empty($vars['Key'])   ) { return 'ERROR: no Key';    }
-
-  if (empty($vars['ACL'])   ) {  $vars['Key'] = 'private';    }
+  if (empty($vars['Bucket'])           ) { return 'ERROR: no Bucket'; }
+  if (empty($vars['Key'])              ) { return 'ERROR: no Key'; }
+  if (!file_exists($vars['SourceFile'])) { return 'ERROR: file \''.$vars['SourceFile'].'\' does not exist'; }
 
   try {
-    $result = $s3->putObject($vars);
+    if (isset($GLOBALS['MULTIPART_THRESHOLD'])
+     && filesize($vars['SourceFile']) > $GLOBALS['MULTIPART_THRESHOLD']*1024*1024) {
+        $uploader = new MultipartUploader($s3,
+                                          $vars['SourceFile'],
+                                          $vars);
+        $result = $uploader->upload();
+    } else {
+      if (filesize($vars['SourceFile']) > 2*1024*1024*1024) {
+        echo "\n".'WARNING: file \''.$vars['SourceFile'].'\' is larger then 2 Gb, consider enabeling \'MultipartUploader\'';
+      }
+      $result = $s3->putObject($vars);
+    }
     if (!empty($result['ObjectURL'])) {
       return 'OK: '.'ObjectURL:'.$result['ObjectURL'];
     } else {
-      return 'ERROR: '.$vars['key'].' was not uploaded';
+      return 'ERROR: '.$vars['Key'].' was not uploaded';
     }
-  } catch (S3Exception $e) { return 'ERROR: ' . $e->getMessage(); }
+  } catch (MultipartUploadException | S3Exception | Exception $e) {
+    return 'ERROR: ' . $e->getMessage();
+  }
 }
 #########################################################################################
 function S3del($s3, $bucket, $vars = array() ) {
