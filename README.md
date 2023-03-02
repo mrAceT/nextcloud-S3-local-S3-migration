@@ -120,7 +120,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
-v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)
+v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)\
 v0.34 added support for 'MultipartUploader'\
 v0.33 some improvements on 'preview management'\
 v0.32 more (size) info + added check for canceled uploads\
