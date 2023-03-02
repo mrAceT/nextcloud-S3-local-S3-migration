@@ -1,7 +1,8 @@
 # nextcloud S3 local S3 migration
  Script for migrating Nextcloud primary storage from S3 to local to S3 storage
 
-# Nextcloud S3 to local to S3 storage migration script :cloud: to :floppy_disk: to :cloud: 
+# Nextcloud S3 to local to S3 storage migration script\
+<p align="center">:cloud: to :floppy_disk: to :cloud:</p>
 
 ## S3 Best practice: start clean
 It is always best to start with the way you want to go. [Nextcloud](https://nextcloud.com/) default for the primary storage is 'local'.
@@ -74,6 +75,9 @@ It will transfer files from **local** based primary storage to a **S3** primary 
 
 The basics were inspired upon the script s3tolocal.php (mentioned above), but there are **a lot** of differences..
 
+Before you start, it is probably wise to set $DO_FILES_CLEAN (occ files:cleanup)
+and $DO_FILES_SCAN (occ files:scan --all) to '1' once, let the 'Nextcloud' do some checking.. then you'll start out as clean as possible
+
 1. the only 'external thing' you need is 'aws/aws-sdk-php' (runuser -u clouduser -- composer require aws/aws-sdk-php)
 2. place 'storage.config.php' in the same folder as localtos3.php (and set your S3 credentials!)
 3. set & check all the config variables in the beginning of the script!
@@ -115,6 +119,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
+v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)
 v0.34 added support for 'MultipartUploader'\
 v0.33 some improvements on 'preview management'\
 v0.32 more (size) info + added check for canceled uploads\

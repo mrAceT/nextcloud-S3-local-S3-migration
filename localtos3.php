@@ -1,6 +1,7 @@
 <?php
 /* *********************************************************************************** */
 /*        2023 code created by Eesger Toering / knoop.frl / geoarchive.eu              */
+/*        GitHub: https://github.com/mrAceT/nextcloud-S3-local-S3-migration            */
 /*     Like the work? You'll be surprised how much time goes into things like this..   */
 /*                            be my hero, support my work,                             */
 /*                     https://paypal.me/eesgertoering                                 */
@@ -17,9 +18,10 @@ use Aws\S3\S3Client;
 #use Aws\S3\MultipartUploader;
 #$MULTIPART_THRESHOLD = 500; #Megabytes
 
-echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud local to S3 version 0.34\n";
-echo "\n Reading config...";
+echo "\n#########################################################################################".
+     "\n Migration tool for Nextcloud local to S3 version 0.35".
+     "\n".
+     "\n Reading config...";
 
 $PREVIEW_MAX_AGE = 0; // max age (days) of preview images (EXPERIMENTAL! 0 = no del)
 $PREVIEW_MAX_DEL = 0.005; // max amount of previews to delete at a time (when < 1 & > 0 => percentage! )..
@@ -51,11 +53,13 @@ $SQL_DUMP_PASS = '';
 
 $CONFIG_OBJECTSTORE = dirname(__FILE__).'/storage.config.php';
 
+# It is probably wise to set the two vars below to '1' once, let the 'Nextcloud' do some checking..
 $DO_FILES_CLEAN = 0; // perform occ files:cleanup    | can take a while on large accounts (should not be necessary but cannot hurt / not working while in maintenance.. )
 $DO_FILES_SCAN  = 0; // perform occ files:scan --all | can take a while on large accounts (should not be necessary but cannot hurt / not working while in maintenance.. )
 
-echo "\n\n#########################################################################################";
-echo "\nSetting up local migration to S3 (sync)...\n";
+echo "\n".
+     "\n#########################################################################################".
+     "\nSetting up local migration to S3 (sync)...\n";
 
 // Autoload
 require_once(dirname(__FILE__).'/vendor/autoload.php');
@@ -216,13 +220,13 @@ $s3 = new S3Client([
     ],
 ]);
 
-echo "\n";
-echo "\n#########################################################################################";
-echo "\nSetting everything up finished ##########################################################";
+echo "\n".
+     "\n#########################################################################################".
+     "\nSetting everything up finished ##########################################################";
 
-echo "\n";
-echo "\n#########################################################################################";
-echo "\nappdata preview size...";
+echo "\n".
+     "\n#########################################################################################".
+     "\nappdata preview size...";
 $PREVIEW_MAX_AGEU = 0;
 $PREVIEW_1YR_AGEU = 0;
 if ($PREVIEW_MAX_AGE > 0) {
@@ -354,9 +358,9 @@ if ($PREVIEW_DEL[0] > 0
   echo "\nappdata preview > 1 year old:".sprintf('% 8.2f',($PREVIEW_1YR[1])/1024/1024)." Mb\t(".$PREVIEW_1YR[0]." files)";
 }
 
-echo "\n";
-echo "\n#########################################################################################";
-echo "\nread files in S3...";
+echo "\n".
+     "\n#########################################################################################".
+     "\nread files in S3...";
 $objects = S3list($s3, $bucket);
 
 $objectIDs     = array();
@@ -497,9 +501,9 @@ else {
   }
 }
 
-echo "\n";
-echo "\n#########################################################################################";
-echo "\ncheck files in oc_filecache... ";
+echo "\n".
+     "\n#########################################################################################".
+     "\ncheck files in oc_filecache... ";
 
 if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
                              " `oc_filecache` AS `FC`,".
@@ -604,10 +608,10 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
 }
 echo "\nCopying files finished";
 
-echo "\n"; # inspiration source: https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php
-echo "\n#########################################################################################";
-echo "\ncheck for canceled uploads in oc_filecache...";
-echo "\n=> EXPERIMENTAL, I have not had this problem, so can not test.. => check only!";
+echo "\n". # inspiration source: https://github.com/otherguy/nextcloud-cleanup/blob/main/clean.php
+     "\n#########################################################################################".
+     "\ncheck for canceled uploads in oc_filecache...".
+     "\n=> EXPERIMENTAL, I have not had this problem, so can not test.. => check only!";
 
 if (!$result = $mysqli->query("SELECT `oc_filecache`.`fileid`, `oc_filecache`.`path`, `oc_filecache`.`parent`, `oc_storages`.`id` AS `storage`, `oc_filecache`.`size`".
                              " FROM `oc_filecache`".
@@ -693,7 +697,8 @@ if (empty($TEST)) {
     }
   }  
   
-  echo "\n\n#########################################################################################";
+  echo "\n".
+       "\n#########################################################################################";
 
   if ($PREVIEW_DEL[1] > 0 ) {
     echo "\nThere were preview images removed";
@@ -715,19 +720,42 @@ if (empty($TEST)) {
       $process = occ($OCC_BASE,'maintenance:mode --off');
       echo $process;
     }
+    echo "\n#########################################################################################".
+         "\n".
+         "\nALL DONE!".
+         "\n".
+         "\nLog into your Nextcloud instance and check!".
+         "\n".
+         "\nIf all looks well: do not forget to remove '/config/storage.config.php' (it should be".
+         "\n                   included in your config: having double config data is a risk..)".
+         "\nIf it's not OK   : set your instance in 'maintenance:mode --on' & restore your SQL backup".
+         "\n                   you'll be back to 'local' (let me know, via GitHub, I'll try to help)".
+         "\n#########################################################################################";
   }
   else if ($OBJECT_STORE_ID > 0 ) {
     if ($SET_MAINTENANCE) { // maintenance mode
       $process = occ($OCC_BASE,'maintenance:mode --off');
       echo $process;
     }
+    echo "\n#########################################################################################".
+         "\n".
+         "\nALL DONE!".
+         "\n".
+         "\nLog into your Nextcloud instance and check!".
+         "\n".
+         "\n#########################################################################################";
   } else {
-    echo "\n#########################################################################################";
-    echo "\nNOTE: THIS MUST BE DONE MANUALY!!";
-    echo "\n 1: add \$CONFIG_OBJECTSTORE to your config.php";
-    echo "\n 2: turn maintenance mode off";
-    echo "\n\nthe importance of the order to do things is EXTREME, other order can brick your Nextcloud!!\n\n";
-    echo "\n\n#########################################################################################";
+    echo "\n#########################################################################################".
+         "\n".
+         "\nALMOST done, one more step:".
+         "\n".
+         "\n ====== ! ! THIS MUST BE DONE MANUALY ! ! ======".
+         "\n 1: add \$CONFIG_OBJECTSTORE to your config.php".
+         "\n 2: turn maintenance mode off".
+         "\n".
+         "\nThe importance of the order to do this is EXTREME, other order can brick your Nextcloud!!\n".
+         "\n".
+         "\n#########################################################################################";
   }  
   echo "\n\n";
   
