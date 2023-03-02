@@ -42,7 +42,8 @@ However, it's very well possible and these unofficial scripts will help you in d
 In theory nothing much could go wrong, as the script does not remove your local/S3 data and only uploads/downloads it all to your s3 bucket/local drive and does database changes (which are backed up)..but there might just be that one thing I didn’t think of.. or did that little alteration that I haven’t tested..
 
 <p align="center">:warning: These scripts are written with the best of intentions and have both been tested thoroughly. :warning:</p>
-<p align="center">:warning: **But** it may fail and lead to data loss. **Use at your own risk!** :warning:</p>
+<p align="center">:warning: <strong>But</strong> it may fail and lead to data loss. :warning:</p>
+<p align="center">:warning: <strong>Use at your own risk!</strong> :warning:</p>
 
 ## S3 to local
 It will transfer files from **S3** based primary storage to a **local** primary storage.
