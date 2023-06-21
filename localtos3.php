@@ -9,7 +9,7 @@
 /* *********************************************************************************** */
 
 # best practice: run the script as the cloud-user!!
-# sudo -u clouduser php74 -d memory_limit=1024M /var/www/vhost/nextcloud/localtos3.php
+# sudo -u clouduser php81 -d memory_limit=1024M /var/www/vhost/nextcloud/localtos3.php
 
 # runuser -u clouduser -- composer require aws/aws-sdk-php
 use Aws\S3\S3Client;
@@ -19,7 +19,7 @@ use Aws\S3\S3Client;
 #$MULTIPART_THRESHOLD = 500; #Megabytes
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.35".
+     "\n Migration tool for Nextcloud local to S3 version 0.36".
      "\n".
      "\n Reading config...";
 
@@ -35,7 +35,7 @@ $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database (you m
 
 $OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // don't forget this one --. (if you don't run the script as the 'clouduser', see first comment at the top)
-#$OCC_BASE       = 'sudo -u clouduser php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+#$OCC_BASE       = 'sudo -u clouduser php81 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 
 $TEST = 2; //'admin';//'appdata_oczvcie123w4';
 // set to 0 for LIVE!!
@@ -388,6 +388,13 @@ else {
   foreach ($objects as $object) {
     $current++;
     $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . $object['LastModified'] . "\t";
+
+    if ( !preg_match('/^[0-9]+$/',substr($object['Key'],8)) ) {
+      echo "\nFiles in the S3 bucket should be of structure 'urn:oid:[number]',".
+           "\nThe bucket that Nextcloud uses may only contain files of this structure.".
+           "\nFile '".$object['Key']."' does not conform to that structure!\n";
+      die;
+    }
 
     if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
                                  " `oc_filecache` AS `FC`,".
