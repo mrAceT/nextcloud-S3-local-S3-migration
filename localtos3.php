@@ -209,17 +209,30 @@ if ($copy) {
 
 echo "\nconnect to S3...";
 $bucket = $CONFIG['objectstore']['arguments']['bucket'];
-$s3 = new S3Client([
-    'version' => 'latest',
-    'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
-    'bucket_endpoint' => true,
-    'region'  => $CONFIG['objectstore']['arguments']['region'],
-    'credentials' => [
-        'key' => $CONFIG['objectstore']['arguments']['key'],
-        'secret' => $CONFIG['objectstore']['arguments']['secret'],
-    ],
-]);
-
+if($CONFIG['objectstore']['arguments']['use_path_style']){
+     $s3 = new S3Client([
+         'version' => 'latest',
+         'endpoint' => 'https://'.$CONFIG['objectstore']['arguments']['hostname'].'/'.$bucket,
+         'bucket_endpoint' => true,
+         'use_path_style_endpoint' => true,
+         'region'  => $CONFIG['objectstore']['arguments']['region'],
+         'credentials' => [
+             'key' => $CONFIG['objectstore']['arguments']['key'],
+             'secret' => $CONFIG['objectstore']['arguments']['secret'],
+         ],
+     ]);
+}else{
+     $s3 = new S3Client([
+         'version' => 'latest',
+         'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
+         'bucket_endpoint' => true,
+         'region'  => $CONFIG['objectstore']['arguments']['region'],
+         'credentials' => [
+             'key' => $CONFIG['objectstore']['arguments']['key'],
+             'secret' => $CONFIG['objectstore']['arguments']['secret'],
+         ],
+     ]);
+}
 echo "\n".
      "\n#########################################################################################".
      "\nSetting everything up finished ##########################################################";
