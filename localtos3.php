@@ -19,7 +19,7 @@ use Aws\S3\S3Client;
 #$MULTIPART_THRESHOLD = 500; #Megabytes
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.36".
+     "\n Migration tool for Nextcloud local to S3 version 0.37".
      "\n".
      "\n Reading config...";
 
@@ -209,17 +209,30 @@ if ($copy) {
 
 echo "\nconnect to S3...";
 $bucket = $CONFIG['objectstore']['arguments']['bucket'];
-$s3 = new S3Client([
+if($CONFIG['objectstore']['arguments']['use_path_style']){
+  $s3 = new S3Client([
+    'version' => 'latest',
+    'endpoint' => 'https://'.$CONFIG['objectstore']['arguments']['hostname'].'/'.$bucket,
+    'bucket_endpoint' => true,
+    'use_path_style_endpoint' => true,
+    'region'  => $CONFIG['objectstore']['arguments']['region'],
+    'credentials' => [
+      'key' => $CONFIG['objectstore']['arguments']['key'],
+      'secret' => $CONFIG['objectstore']['arguments']['secret'],
+    ],
+  ]);
+}else{
+  $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
     'bucket_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
-        'key' => $CONFIG['objectstore']['arguments']['key'],
-        'secret' => $CONFIG['objectstore']['arguments']['secret'],
+      'key' => $CONFIG['objectstore']['arguments']['key'],
+      'secret' => $CONFIG['objectstore']['arguments']['secret'],
     ],
-]);
-
+  ]);
+}
 echo "\n".
      "\n#########################################################################################".
      "\nSetting everything up finished ##########################################################";
