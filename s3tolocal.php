@@ -14,7 +14,7 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud S3 to local version 0.3\n";
+echo "\n Migration tool for Nextcloud S3 to local version 0.31\n";
 echo "\n Reading config...";
 
 // Note: Preferably use absolute path without trailing directory separators
@@ -164,16 +164,30 @@ if ($copy) {
 
 echo "\nconnect to S3...";
 $bucket = $CONFIG['objectstore']['arguments']['bucket'];
-$s3 = new S3Client([
+if($CONFIG['objectstore']['arguments']['use_path_style']){
+  $s3 = new S3Client([
+    'version' => 'latest',
+    'endpoint' => 'https://'.$CONFIG['objectstore']['arguments']['hostname'].'/'.$bucket,
+    'bucket_endpoint' => true,
+    'use_path_style_endpoint' => true,
+    'region'  => $CONFIG['objectstore']['arguments']['region'],
+    'credentials' => [
+      'key' => $CONFIG['objectstore']['arguments']['key'],
+      'secret' => $CONFIG['objectstore']['arguments']['secret'],
+    ],
+  ]);
+}else{
+  $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
     'bucket_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
-        'key' => $CONFIG['objectstore']['arguments']['key'],
-        'secret' => $CONFIG['objectstore']['arguments']['secret'],
+      'key' => $CONFIG['objectstore']['arguments']['key'],
+      'secret' => $CONFIG['objectstore']['arguments']['secret'],
     ],
-]);
+  ]);
+}
 
 // Check that new Nextcloud data directory is empty
 if (count(scandir($PATH_DATA)) != 2) {
