@@ -16,10 +16,11 @@ use Aws\S3\S3Client;
 
 # uncomment this for large file uploads (Amazon advises this voor 100Mb+ files)
 #use Aws\S3\MultipartUploader;
-#$MULTIPART_THRESHOLD = 500; #Megabytes
+#$MULTIPART['threshold'] = 500; #Megabytes
+#$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.37".
+     "\n Migration tool for Nextcloud local to S3 version 0.38".
      "\n".
      "\n Reading config...";
 
@@ -842,8 +843,9 @@ function S3put($s3, $bucket, $vars = array() ) {
   if (!file_exists($vars['SourceFile'])) { return 'ERROR: file \''.$vars['SourceFile'].'\' does not exist'; }
 
   try {
-    if (isset($GLOBALS['MULTIPART_THRESHOLD'])
-     && filesize($vars['SourceFile']) > $GLOBALS['MULTIPART_THRESHOLD']*1024*1024) {
+    if (isset($GLOBALS['MULTIPART']['threshold'])
+     && filesize($vars['SourceFile']) > $GLOBALS['MULTIPART']['threshold']*1024*1024
+    ) {
         $uploader = new MultipartUploader($s3,
                                           $vars['SourceFile'],
                                           $vars);
@@ -855,12 +857,25 @@ function S3put($s3, $bucket, $vars = array() ) {
       $result = $s3->putObject($vars);
     }
     if (!empty($result['ObjectURL'])) {
+      if (isset($GLOBALS['MULTIPART']['retry_count'])) {
+        unset($GLOBALS['MULTIPART']['retry_count']);
+      }
       return 'OK: '.'ObjectURL:'.$result['ObjectURL'];
     } else {
       return 'ERROR: '.$vars['Key'].' was not uploaded';
     }
   } catch (MultipartUploadException | S3Exception | Exception $e) {
-    return 'ERROR: ' . $e->getMessage();
+    if (!empty($GLOBALS['MULTIPART']['retry'])) {
+      if (!isset($GLOBALS['MULTIPART']['retry_count'])) { $GLOBALS['MULTIPART']['retry_count'] = 1; }
+      else                                              { $GLOBALS['MULTIPART']['retry_count']++;   }
+      if ($GLOBALS['MULTIPART']['retry_count'] <= $GLOBALS['MULTIPART']['retry']) {
+        return S3put($s3, $bucket, $vars);
+      } else {
+        return 'ERROR: (after '.$GLOBALS['MULTIPART']['retry'].' retries)' . $e->getMessage();
+      }
+    } else {
+      return 'ERROR: ' . $e->getMessage();
+    }
   }
 }
 #########################################################################################

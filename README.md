@@ -121,6 +121,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
+v0.38 Added support for retries
 v0.37 Added endpoint path style option\
 v0.36 added detection for 'illegal files' in S3 bucket\
 v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)\
