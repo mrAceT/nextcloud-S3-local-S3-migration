@@ -69,7 +69,7 @@ If everything worked you might want to delete the backup folder and S3 instance 
 Also you probably want to delete this script after running it.
 
 ### S3 to local version history
-v0.30 first github release
+v0.30 first github release\
 v0.31 Added endpoint path style option
 
 ## local to S3
@@ -121,7 +121,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
-v0.37 Added endpoint path style option
+v0.37 Added endpoint path style option\
 v0.36 added detection for 'illegal files' in S3 bucket\
 v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)\
 v0.34 added support for 'MultipartUploader'\
