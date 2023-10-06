@@ -138,8 +138,7 @@ You might have that same reason, so here it is!
 
 Be my hero, think about the time this script saved you, and (offcourse) how happy you are now that you migrated this smoothly.
 Support my work, buy me a cup of coffee, give what its worth to you, or give me half the time this script saved you ;)
-- [paypal](https://paypal.me/eesgertoering)
-- [geef.nl](https://www.geef.nl/en/donate?action=15544) (iDeal, Dutch)
+- [ko-fi](https://ko-fi.com/mrAceT)
 
 ## Contributing
 
