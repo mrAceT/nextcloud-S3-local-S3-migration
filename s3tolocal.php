@@ -14,7 +14,7 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud S3 to local version 0.31\n";
+echo "\n Migration tool for Nextcloud S3 to local version 0.32\n";
 echo "\n Reading config...";
 
 // Note: Preferably use absolute path without trailing directory separators
@@ -27,6 +27,8 @@ $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database
 
 // don't forget this one -.
 $OCC_BASE       = 'sudo -u clouduser php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+// fill this variable ONLY when you are unable to run the 'occ' command above as the clouduser 
+$CLOUDUSER      = ''; // example 'clouduser:group';
 
 $TEST = 1; //'admin';//'appdata_oczvcie123w4';
 // set to 0 for LIVE!!
@@ -249,6 +251,8 @@ echo "\nCreating folder structure finished\n";
 echo "Copying files started... ";
 $error_copy = '';
 
+$users      = array();
+
 if ($result = $mysqli->query("SELECT st.id, fc.fileid, fc.path, fc.storage_mtime FROM oc_filecache as fc,".
                              " oc_storages as st,".
                              " oc_mimetypes as mt".
@@ -274,6 +278,7 @@ if ($result = $mysqli->query("SELECT st.id, fc.fileid, fc.path, fc.storage_mtime
       }
       $user = substr($path, strlen($PATH_DATA. DIRECTORY_SEPARATOR));
       $user = substr($user,0,strpos($user,DIRECTORY_SEPARATOR));
+      $users[ $user ] = $row['storage'];
 
       # just for one user? set test = appdata_oczvcie795w3 (system wil not go to maintenance nor change database, just test and copy data!!)
       if (is_numeric($TEST) || $TEST == $user ) {
@@ -357,6 +362,12 @@ if (!empty($error_copy)) {
 
 echo "\nCopying files finished";
 
+if (!empty($CLOUDUSER)) {
+  echo "\n\nSet the correct owner of the data folder..";
+  echo occ('','chown -R '.$CLOUDUSER.' '.$PATH_DATA);
+  echo "\n";
+}
+
 if (empty($TEST)) {
   echo "\n#########################################################################################";
   echo "\nModifying database started...\n";
@@ -370,6 +381,14 @@ if (empty($TEST)) {
   } else {
     $mysqli->query("UPDATE `oc_filecache` SET `storage` = '".$LOCAL_STORE_ID."' WHERE `storage` = '".$OBJECT_STORE_ID."'");
     $mysqli->query("DELETE FROM `oc_storages` WHERE `oc_storages`.`numeric_id` = ".$OBJECT_STORE_ID);
+  }
+
+  foreach ($users as $key => $value) {
+    $mysqli->query("UPDATE `oc_mounts` SET `mount_provider_class` = REPLACE(`mount_provider_class`, 'ObjectHomeMountProvider', 'LocalHomeMountProvider') WHERE `user_id` = '".$key."'");
+    if ($mysqli->affected_rows == 1) {
+      echo $dashLine."\n-Changed mount provider class off ".$key." from home to object";
+      $dashLine = '';
+    }
   }
   
   echo "\nModifying database finished";

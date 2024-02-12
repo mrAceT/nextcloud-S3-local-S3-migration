@@ -1,8 +1,6 @@
 # nextcloud S3 local S3 migration
 Script for migrating Nextcloud primary storage from S3 to local to S3 storage
 
-:warning: Migration does not appear to retain shares (check https://github.com/mrAceT/nextcloud-S3-local-S3-migration/issues/11) **to do..**
-
 # Nextcloud S3 to local to S3 storage migration script
 <h1 align="center">:cloud: to :floppy_disk: to :cloud:</h1>
 
@@ -72,7 +70,10 @@ Also you probably want to delete this script after running it.
 
 ### S3 to local version history
 v0.30 first github release\
-v0.31 Added endpoint path style option
+v0.31 Added endpoint path style option\
+v0.32 Set 'mount_provider_class' and add option to chown files if clouduser has no command line rights\
+
+:warning: check https://github.com/mrAceT/nextcloud-S3-local-S3-migration/issues/11 if you need the option stated in 0.32 **work in progress..**
 
 ## local to S3
 It will transfer files from **local** based primary storage to a **S3** primary storage.
