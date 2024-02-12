@@ -141,7 +141,8 @@ You might have that same reason, so here it is!
 
 Be my hero, think about the time this script saved you, and (offcourse) how happy you are now that you migrated this smoothly.
 Support my work, buy me a cup of coffee, give what its worth to you, or give me half the time this script saved you ;)
-- [ko-fi](https://ko-fi.com/mrAceT)
+- [donate with ko-fi](https://ko-fi.com/mrAceT)
+- [donate with paypal](https://www.paypal.com/donate?hosted_button_id=W52D2EYLREJU4)
 
 ## Contributing
 
