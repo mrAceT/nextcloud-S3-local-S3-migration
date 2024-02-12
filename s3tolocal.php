@@ -209,7 +209,14 @@ echo "\nSetting everything up finished #########################################
 
 echo "\nCreating folder structure started... ";
 
-if ($result = $mysqli->query("SELECT st.id, fc.fileid, fc.path, fc.storage_mtime FROM oc_filecache as fc, oc_storages as st, oc_mimetypes as mt WHERE st.numeric_id = fc.storage AND st.id LIKE 'object::%' AND fc.mimetype = mt.id AND mt.mimetype = 'httpd/unix-directory'")) {
+if ($result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime` FROM".
+                             " `oc_filecache` as `FC`,".
+                             " `oc_storages`  as `ST`,".
+                             " `oc_mimetypes` as `MT`".
+                             " WHERE `ST`.`numeric_id` = `FC`.`storage`".
+                              " AND `ST`.`id LIKE` 'object::%'".
+                              " AND `FC`.`mimetype` = `MT`.id".
+                              " AND `MT`.`mimetype` = 'httpd/unix-directory'")) {
   
   // Init progress
   $complete = $result->num_rows;
@@ -253,14 +260,15 @@ $error_copy = '';
 
 $users      = array();
 
-if ($result = $mysqli->query("SELECT st.id, fc.fileid, fc.path, fc.storage_mtime FROM oc_filecache as fc,".
-                             " oc_storages as st,".
-                             " oc_mimetypes as mt".
-                             " WHERE st.numeric_id = fc.storage".
-                              " AND st.id LIKE 'object::%'".
-                              " AND fc.mimetype = mt.id".
-                              " AND mt.mimetype != 'httpd/unix-directory'".
-                             " ORDER BY st.id ASC")) {
+if ($result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size`, `FC`.`storage` FROM".
+                             " `oc_filecache` AS `FC`,".
+                             " `oc_storages`  AS `ST`,".
+                             " `oc_mimetypes` AS `MT`".
+                             " WHERE `ST`.`numeric_id` = `FC`.`storage`".
+                              " AND `ST`.`id` LIKE 'object::%'".
+                              " AND `FC`.`mimetype` = `MT`.`id`".
+                              " AND `MT`.`mimetype` != 'httpd/unix-directory'".
+                             " ORDER BY `ST`.`id` ASC")) {
 
   // Init progress
   $complete = $result->num_rows;
