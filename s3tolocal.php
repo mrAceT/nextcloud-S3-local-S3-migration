@@ -214,8 +214,8 @@ if ($result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`
                              " `oc_storages`  as `ST`,".
                              " `oc_mimetypes` as `MT`".
                              " WHERE `ST`.`numeric_id` = `FC`.`storage`".
-                              " AND `ST`.`id LIKE` 'object::%'".
-                              " AND `FC`.`mimetype` = `MT`.id".
+                              " AND `ST`.`id` LIKE 'object::%'".
+                              " AND `FC`.`mimetype` = `MT`.`id`".
                               " AND `MT`.`mimetype` = 'httpd/unix-directory'")) {
   
   // Init progress
