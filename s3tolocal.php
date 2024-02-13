@@ -14,7 +14,7 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud S3 to local version 0.32\n";
+echo "\n Migration tool for Nextcloud S3 to local version 0.33\n";
 echo "\n Reading config...";
 
 // Note: Preferably use absolute path without trailing directory separators
@@ -37,7 +37,7 @@ $TEST = 1; //'admin';//'appdata_oczvcie123w4';
 
 $NON_EMPTY_TARGET_OK = 1;
 
-$PATH_DATA_LOCAL_EXISTS_OK = 1; //defaul 0 !! Only set to 1 if you're sure..
+$PATH_DATA_LOCAL_EXISTS_OK = 1; //default 0 !! Only set to 1 if you're sure..
 
 $NR_OF_COPY_ERRORS_OK = 8;
 
@@ -166,10 +166,13 @@ if ($copy) {
 
 echo "\nconnect to S3...";
 $bucket = $CONFIG['objectstore']['arguments']['bucket'];
-if($CONFIG['objectstore']['arguments']['use_path_style']){
+$proto  = isset($CONFIG['objectstore']['arguments']['use_ssl']) ? $CONFIG['objectstore']['arguments']['use_ssl'] : true;
+$proto  = $proto ? 'https' : 'http';  // ? added line
+$port   = isset($CONFIG['objectstore']['arguments']['port']) ? ':'.$CONFIG['objectstore']['arguments']['port'] : '';
+if ($CONFIG['objectstore']['arguments']['use_path_style']) {
   $s3 = new S3Client([
     'version' => 'latest',
-    'endpoint' => 'https://'.$CONFIG['objectstore']['arguments']['hostname'].'/'.$bucket,
+    'endpoint' => $proto.'://'.$CONFIG['objectstore']['arguments']['hostname'].$port.'/'.$bucket,
     'bucket_endpoint' => true,
     'use_path_style_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
@@ -178,10 +181,10 @@ if($CONFIG['objectstore']['arguments']['use_path_style']){
       'secret' => $CONFIG['objectstore']['arguments']['secret'],
     ],
   ]);
-}else{
+} else {
   $s3 = new S3Client([
     'version' => 'latest',
-    'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
+    'endpoint' => $proto.'://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'].$port,
     'bucket_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [

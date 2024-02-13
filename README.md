@@ -69,9 +69,10 @@ If everything worked you might want to delete the backup folder and S3 instance 
 Also you probably want to delete this script after running it.
 
 ### S3 to local version history
-v0.30 first github release\
-v0.31 Added endpoint path style option\
+v0.33 Added support for optional ssl and port for S3 connection\
 v0.32 Set 'mount_provider_class' and add option to chown files if clouduser has no command line rights\
+v0.31 Added endpoint path style option\
+v0.30 first github release\
 
 :warning: check https://github.com/mrAceT/nextcloud-S3-local-S3-migration/issues/11 if you need the option stated in 0.32 **work in progress..**
 
@@ -124,6 +125,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
+v0.39 Added support for optional ssl and port for S3 connection\
 v0.38 Added support for retries\
 v0.37 Added endpoint path style option\
 v0.36 added detection for 'illegal files' in S3 bucket\
@@ -131,7 +133,7 @@ v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)\
 v0.34 added support for 'MultipartUploader'\
 v0.33 some improvements on 'preview management'\
 v0.32 more (size) info + added check for canceled uploads\
-v0.31 first github release
+v0.31 first github release\
 
 # I give to you, you..
 

@@ -20,7 +20,7 @@ use Aws\S3\S3Client;
 #$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.38".
+     "\n Migration tool for Nextcloud local to S3 version 0.39".
      "\n".
      "\n Reading config...";
 
@@ -37,15 +37,14 @@ $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database (you m
 $OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // don't forget this one --. (if you don't run the script as the 'clouduser', see first comment at the top)
 #$OCC_BASE       = 'sudo -u clouduser php81 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
-
+// set $TEST to 0 for LIVE!!
+// set $TEST to 1 for all data : NO db modifications, with file modifications/uplaods/removal
+// set $TEST to user name for single user (migration) test
+// set $TEST to 2 for complete dry run
 $TEST = 2; //'admin';//'appdata_oczvcie123w4';
-// set to 0 for LIVE!!
-// set to 1 for all data : NO db modifications, with file modifications/uplaods/removal
-// set to user name for single user (migration) test
-// set to 2 for complete dry run
 
-$SET_MAINTENANCE = 1; // only in $TEST=0 Nextcloud will be put into maintenance mode
 // ONLY when migration is all done you can set this to 0 for the S3-consitancy checks
+$SET_MAINTENANCE = 1; // only in $TEST=0 Nextcloud will be put into maintenance mode
 
 $SHOWINFO = 1; // set to 0 to force much less info (while testing)
 
@@ -57,6 +56,8 @@ $CONFIG_OBJECTSTORE = dirname(__FILE__).'/storage.config.php';
 # It is probably wise to set the two vars below to '1' once, let the 'Nextcloud' do some checking..
 $DO_FILES_CLEAN = 0; // perform occ files:cleanup    | can take a while on large accounts (should not be necessary but cannot hurt / not working while in maintenance.. )
 $DO_FILES_SCAN  = 0; // perform occ files:scan --all | can take a while on large accounts (should not be necessary but cannot hurt / not working while in maintenance.. )
+
+############################################################################ end config #
 
 echo "\n".
      "\n#########################################################################################".
@@ -210,10 +211,13 @@ if ($copy) {
 
 echo "\nconnect to S3...";
 $bucket = $CONFIG['objectstore']['arguments']['bucket'];
+$proto  = isset($CONFIG['objectstore']['arguments']['use_ssl']) ? $CONFIG['objectstore']['arguments']['use_ssl'] : true;
+$proto  = $proto ? 'https' : 'http';  // ? added line
+$port   = isset($CONFIG['objectstore']['arguments']['port']) ? ':'.$CONFIG['objectstore']['arguments']['port'] : '';
 if($CONFIG['objectstore']['arguments']['use_path_style']){
   $s3 = new S3Client([
     'version' => 'latest',
-    'endpoint' => 'https://'.$CONFIG['objectstore']['arguments']['hostname'].'/'.$bucket,
+    'endpoint' => $proto.'://'.$CONFIG['objectstore']['arguments']['hostname'].$port.'/'.$bucket,
     'bucket_endpoint' => true,
     'use_path_style_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
@@ -222,10 +226,10 @@ if($CONFIG['objectstore']['arguments']['use_path_style']){
       'secret' => $CONFIG['objectstore']['arguments']['secret'],
     ],
   ]);
-}else{
+} else {
   $s3 = new S3Client([
     'version' => 'latest',
-    'endpoint' => 'https://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'],
+    'endpoint' => $proto.'://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'].$port,
     'bucket_endpoint' => true,
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
@@ -409,8 +413,8 @@ else {
            "\nFile '".$object['Key']."' does not conform to that structure!\n";
       die;
     }
-
-    if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
+    
+    if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size`, `FC`.`storage` FROM".
                                  " `oc_filecache` AS `FC`,".
                                  " `oc_storages`  AS `ST`,".
                                  " `oc_mimetypes` AS `MT`".
@@ -421,7 +425,7 @@ else {
                                   " AND `ST`.`numeric_id` = `FC`.`storage`".
                                   " AND `FC`.`mimetype`   = `MT`.`id`".
                                   " AND `MT`.`mimetype`  != 'httpd/unix-directory'".
-                                 " ORDER BY `FC`.`path` ASC")) {#
+                                 " ORDER BY `FC`.`path` ASC")) {
       echo "\nERROR: query pos 2";
       die;
     } else {
@@ -431,8 +435,8 @@ else {
       }
       else if ($result->num_rows == 0) { # in s3, not in db, remove from s3
         if ($showinfo) { echo $infoLine."\nID:".$object['Key']."\ton S3, but not in oc_filecache, remove..."; }
-        if (!empty($TEST) && $TEST == 2) {
-          echo ' not removed ($TEST = 2)';
+        if (!empty($TEST)) { #  && $TEST == 2
+          echo ' not removed ($TEST != 0)';
         } else {
           $result_s3 =  S3del($s3, $bucket, $object['Key']);
           if ($showinfo) { echo 'S3del:'.$result_s3; }
@@ -454,7 +458,7 @@ else {
         }
         $user = substr($path, strlen($PATH_DATA. DIRECTORY_SEPARATOR));
         $user = substr($user,0,strpos($user,DIRECTORY_SEPARATOR));
-        $users[ $user ] = 1;
+        $users[ $user ] = $row['storage'];
 
         $infoLine.= $user. "\t";
 
@@ -526,7 +530,7 @@ echo "\n".
      "\n#########################################################################################".
      "\ncheck files in oc_filecache... ";
 
-if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size` FROM".
+if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size`, `FC`.`storage` FROM".
                              " `oc_filecache` AS `FC`,".
                              " `oc_storages`  AS `ST`,".
                              " `oc_mimetypes` AS `MT`".
@@ -568,7 +572,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
       }
       $user = substr($path, strlen($PATH_DATA. DIRECTORY_SEPARATOR));
       $user = substr($user,0,strpos($user,DIRECTORY_SEPARATOR));
-      $users[ $user ] = 1;
+      $users[ $user ] = $row['storage'];
 
       if ($showinfo) { echo "\n".$user."\t".$row['fileid']."\t".$path."\t"; }
       
@@ -808,7 +812,13 @@ function S3list($s3, $bucket, $maxIteration = 10000000) {
       if (rand(0,100) > 75 ) { echo '.'; }
       
       if ($result->get('Contents')) {
-        $objects = array_merge($objects, $result->get('Contents'));
+        #$objects = array_merge($objects, $result->get('Contents'));
+        # it'll be a bit slower then 'array_merge', but is needed to preserve memory.. (I only need key & size)
+        $objectsNEW = $result->get('Contents');
+        foreach ($objectsNEW as $object) {
+          array_push($objects, ['Key'  => $object['Key'],
+                                'Size' => $object['Size']]);
+        }
       }
       if (count($objects)) {
         $marker = $objects[count($objects) - 1]['Key'];
