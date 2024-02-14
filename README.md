@@ -72,9 +72,9 @@ Also you probably want to delete this script after running it.
 v0.33 Added support for optional ssl and port for S3 connection\
 v0.32 Set 'mount_provider_class' and add option to chown files if clouduser has no command line rights\
 v0.31 Added endpoint path style option\
-v0.30 first github release\
+v0.30 first github release
 
-:warning: check https://github.com/mrAceT/nextcloud-S3-local-S3-migration/issues/11 if you need the option stated in 0.32 **work in progress..**
+:warning: check https://github.com/mrAceT/nextcloud-S3-local-S3-migration/issues/11 if you need the option stated in v0.32 **work in progress..**
 
 ## local to S3
 It will transfer files from **local** based primary storage to a **S3** primary storage.
@@ -133,7 +133,7 @@ v0.35 added some more info at the end of $TEST=0 (and a bit of code cleanup)\
 v0.34 added support for 'MultipartUploader'\
 v0.33 some improvements on 'preview management'\
 v0.32 more (size) info + added check for canceled uploads\
-v0.31 first github release\
+v0.31 first github release
 
 # I give to you, you..
 
