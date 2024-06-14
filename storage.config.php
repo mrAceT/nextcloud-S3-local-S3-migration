@@ -4,7 +4,6 @@ $CONFIG = array(
           'class' => 'OC\\Files\\ObjectStore\\S3',
           'arguments' => array(
                   'bucket' => '**bucket**', // your bucket name
-                  'autocreate' => true,
                   'key' => '**key', // your key
                   'secret' => '**secret**', // your secret
                   'hostname' => '**host**', // your host
