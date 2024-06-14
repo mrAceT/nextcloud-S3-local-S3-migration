@@ -1,5 +1,5 @@
 <?php
-$CONFIG = array (
+$CONFIG = array(
   'objectstore' => array(
           'class' => 'OC\\Files\\ObjectStore\\S3',
           'arguments' => array(
@@ -10,10 +10,9 @@ $CONFIG = array (
                   'hostname' => '**host**', // your host
                   'port' => 443,
                   'use_ssl' => true,
-                  'region' => '**region**', // your region
-                  'use_path_style' => false
-  // required for some non Amazon S3 implementations
-  // 'use_path_style' => true
+                  'use_path_style' => false,
+                  'sse_c_key' => '***sse-c key***', //only provide, if you want to use customer provided encryption key see: https://docs.nextcloud.com/server/latest/admin_manual/configuration_files/primary_storage.html#s3-sse-c-encryption-support
+                  'region' => 'eu-central' //must be provided, even if non-S3 storage is selected. Otherwise the script localtoS3 will fail
           ),
   ),
 );

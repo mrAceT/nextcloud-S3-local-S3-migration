@@ -125,6 +125,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
+v0.40 Added support for customer provided encryption keys (SSE-C)
 v0.39 Added support for optional ssl and port for S3 connection\
 v0.38 Added support for retries\
 v0.37 Added endpoint path style option\

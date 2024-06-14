@@ -41,7 +41,7 @@ $OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // set $TEST to 1 for all data : NO db modifications, with file modifications/uplaods/removal
 // set $TEST to user name for single user (migration) test
 // set $TEST to 2 for complete dry run
-$TEST = 2; //'admin';//'appdata_oczvcie123w4';
+$TEST = 0; //'admin';//'appdata_oczvcie123w4';
 
 // ONLY when migration is all done you can set this to 0 for the S3-consitancy checks
 $SET_MAINTENANCE = 1; // only in $TEST=0 Nextcloud will be put into maintenance mode
@@ -471,12 +471,16 @@ else {
               if (!empty($TEST) && $TEST == 2) {
                 echo ' not uploaded ($TEST = 2)';
               } else {
-                $result_s3 =  S3put($s3, $bucket,[
-                                          'Key' => 'urn:oid:'.$row['fileid'],
-                                          #'Body'=> "Hello World!!",
-                                          'SourceFile' => $path,
-                                          'ACL' => 'private'//public-read'
-                                        ]);
+                $putConfig = [
+                  'Key' => 'urn:oid:'.$row['fileid'],
+                  'SourceFile' => $path,
+                  'ACL' => 'private'//public-read'
+                  ];
+                if(isset($CONFIG['objectstore']['arguments']['sse_c_key'])) {
+                  $putConfig['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
+                  $putConfig['SSECustomerAlgorithm'] = 'AES256';
+                }
+                $result_s3 =  S3put($s3, $bucket, $putConfig);
                 if ($showinfo) { echo 'S3put:'.$result_s3; }
               }
               $S3_updated[0]++;
@@ -582,12 +586,16 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
           if (!empty($TEST) && $TEST == 2) {
             echo ' not uploaded ($TEST = 2)';
           } else {
-            $result_s3 = S3put($s3, $bucket,[
-                                      'Key' => 'urn:oid:'.$row['fileid'],
-                                      #'Body'=> "Hello World!!",
-                                      'SourceFile' => $path,
-                                      'ACL' => 'private'//public-read'
-                                    ]);
+            $putConfig = [
+               'Key' => 'urn:oid:'.$row['fileid'],
+               'SourceFile' => $path,
+               'ACL' => 'private'//public-read'
+               ];
+            if(isset($CONFIG['objectstore']['arguments']['sse_c_key'])) {
+               $putConfig['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
+               $putConfig['SSECustomerAlgorithm'] = 'AES256';
+            }
+            $result_s3 = S3put($s3, $bucket, $putConfig);
             if (strpos(' '.$result_s3,'ERROR:') == 1) {
               echo "\n".$result_s3."\n\n";
               die;
