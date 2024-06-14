@@ -20,7 +20,7 @@ use Aws\S3\S3Client;
 #$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.39".
+     "\n Migration tool for Nextcloud local to S3 version 0.40".
      "\n".
      "\n Reading config...";
 
@@ -41,7 +41,7 @@ $OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // set $TEST to 1 for all data : NO db modifications, with file modifications/uplaods/removal
 // set $TEST to user name for single user (migration) test
 // set $TEST to 2 for complete dry run
-$TEST = 0; //'admin';//'appdata_oczvcie123w4';
+$TEST = 2; //'admin';//'appdata_oczvcie123w4';
 
 // ONLY when migration is all done you can set this to 0 for the S3-consitancy checks
 $SET_MAINTENANCE = 1; // only in $TEST=0 Nextcloud will be put into maintenance mode
