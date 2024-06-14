@@ -471,16 +471,17 @@ else {
               if (!empty($TEST) && $TEST == 2) {
                 echo ' not uploaded ($TEST = 2)';
               } else {
-                $putConfig = [
+                $putData = [
                   'Key' => 'urn:oid:'.$row['fileid'],
+                  //'Body'=> "Hello World!!",
                   'SourceFile' => $path,
                   'ACL' => 'private'//public-read'
                   ];
                 if(isset($CONFIG['objectstore']['arguments']['sse_c_key'])) {
-                  $putConfig['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
-                  $putConfig['SSECustomerAlgorithm'] = 'AES256';
+                  $putData['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
+                  $putData['SSECustomerAlgorithm'] = 'AES256';
                 }
-                $result_s3 =  S3put($s3, $bucket, $putConfig);
+                $result_s3 =  S3put($s3, $bucket, $putData);
                 if ($showinfo) { echo 'S3put:'.$result_s3; }
               }
               $S3_updated[0]++;
