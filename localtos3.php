@@ -405,7 +405,7 @@ else {
   
   foreach ($objects as $object) {
     $current++;
-    $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . (array_key_exists('LastModified', $object) ? $object['LastModified'] : 'unk') . "\t";
+    $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . (array_key_exists('LastModified', $object) ? $object['LastModified'] : '-') . "\t";
 
     if ( !preg_match('/^[0-9]+$/',substr($object['Key'],8)) ) {
       echo "\nFiles in the S3 bucket should be of structure 'urn:oid:[number]',".
