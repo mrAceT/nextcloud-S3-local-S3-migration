@@ -20,7 +20,7 @@ use Aws\S3\S3Client;
 #$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.39".
+     "\n Migration tool for Nextcloud local to S3 version 0.40".
      "\n".
      "\n Reading config...";
 
@@ -405,7 +405,7 @@ else {
   
   foreach ($objects as $object) {
     $current++;
-    $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . $object['LastModified'] . "\t";
+    $infoLine = "\n".$current."  /  ".substr($object['Key'],8)."\t".$object['Key'] . "\t" . $object['Size'] . "\t" . (array_key_exists('LastModified', $object) ? $object['LastModified'] : '-') . "\t";
 
     if ( !preg_match('/^[0-9]+$/',substr($object['Key'],8)) ) {
       echo "\nFiles in the S3 bucket should be of structure 'urn:oid:[number]',".
@@ -471,12 +471,17 @@ else {
               if (!empty($TEST) && $TEST == 2) {
                 echo ' not uploaded ($TEST = 2)';
               } else {
-                $result_s3 =  S3put($s3, $bucket,[
-                                          'Key' => 'urn:oid:'.$row['fileid'],
-                                          #'Body'=> "Hello World!!",
-                                          'SourceFile' => $path,
-                                          'ACL' => 'private'//public-read'
-                                        ]);
+                $putData = [
+                  'Key' => 'urn:oid:'.$row['fileid'],
+                  //'Body'=> "Hello World!!",
+                  'SourceFile' => $path,
+                  'ACL' => 'private'//public-read'
+                  ];
+                if(isset($CONFIG['objectstore']['arguments']['sse_c_key'])) {
+                  $putData['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
+                  $putData['SSECustomerAlgorithm'] = 'AES256';
+                }
+                $result_s3 =  S3put($s3, $bucket, $putData);
                 if ($showinfo) { echo 'S3put:'.$result_s3; }
               }
               $S3_updated[0]++;
@@ -582,12 +587,16 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
           if (!empty($TEST) && $TEST == 2) {
             echo ' not uploaded ($TEST = 2)';
           } else {
-            $result_s3 = S3put($s3, $bucket,[
-                                      'Key' => 'urn:oid:'.$row['fileid'],
-                                      #'Body'=> "Hello World!!",
-                                      'SourceFile' => $path,
-                                      'ACL' => 'private'//public-read'
-                                    ]);
+            $putConfig = [
+               'Key' => 'urn:oid:'.$row['fileid'],
+               'SourceFile' => $path,
+               'ACL' => 'private'//public-read'
+               ];
+            if(isset($CONFIG['objectstore']['arguments']['sse_c_key'])) {
+               $putConfig['SSECustomerKey'] = base64_decode($CONFIG['objectstore']['arguments']['sse_c_key']);
+               $putConfig['SSECustomerAlgorithm'] = 'AES256';
+            }
+            $result_s3 = S3put($s3, $bucket, $putConfig);
             if (strpos(' '.$result_s3,'ERROR:') == 1) {
               echo "\n".$result_s3."\n\n";
               die;
