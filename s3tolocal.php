@@ -14,7 +14,7 @@
 use Aws\S3\S3Client;
 
 echo "\n#########################################################################################";
-echo "\n Migration tool for Nextcloud S3 to local version 0.33\n";
+echo "\n Migration tool for Nextcloud S3 to local version 0.34\n";
 echo "\n Reading config...";
 
 // Note: Preferably use absolute path without trailing directory separators
@@ -173,8 +173,8 @@ if ($CONFIG['objectstore']['arguments']['use_path_style']) {
   $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => $proto.'://'.$CONFIG['objectstore']['arguments']['hostname'].$port.'/'.$bucket,
-    'bucket_endpoint' => true,
-    'use_path_style_endpoint' => true,
+    'bucket_endpoint' => !isset($CONFIG['objectstore']['arguments']['bucket_endpoint']) ? true : $CONFIG['objectstore']['arguments']['bucket_endpoint'],
+    'use_path_style_endpoint' => !isset($CONFIG['objectstore']['arguments']['use_path_style_endpoint']) ? true : $CONFIG['objectstore']['arguments']['use_path_style_endpoint'],
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
       'key' => $CONFIG['objectstore']['arguments']['key'],
@@ -185,7 +185,7 @@ if ($CONFIG['objectstore']['arguments']['use_path_style']) {
   $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => $proto.'://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'].$port,
-    'bucket_endpoint' => true,
+    'bucket_endpoint' => !isset($CONFIG['objectstore']['arguments']['bucket_endpoint']) ? true : $CONFIG['objectstore']['arguments']['bucket_endpoint'],
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
       'key' => $CONFIG['objectstore']['arguments']['key'],

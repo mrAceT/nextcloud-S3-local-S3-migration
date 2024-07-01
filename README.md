@@ -69,6 +69,7 @@ If everything worked you might want to delete the backup folder and S3 instance 
 Also you probably want to delete this script after running it.
 
 ### S3 to local version history
+v0.34 Read config bucket_endpoint & use_path_style_endpoint\
 v0.33 Added support for optional ssl and port for S3 connection\
 v0.32 Set 'mount_provider_class' and add option to chown files if clouduser has no command line rights\
 v0.31 Added endpoint path style option\
@@ -125,6 +126,7 @@ There is some initial work for clearing previews.. that is a work in progress, u
 The script will do the "sanity check" when migrating also (we want a good and clean migrition, won't we? ;)
 
 ### local to S3 version history
+v0.41 Read config bucket_endpoint & use_path_style_endpoint\
 v0.40 Added support for customer provided encryption keys (SSE-C)
 v0.39 Added support for optional ssl and port for S3 connection\
 v0.38 Added support for retries\

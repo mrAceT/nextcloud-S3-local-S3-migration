@@ -20,7 +20,7 @@ use Aws\S3\S3Client;
 #$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
-     "\n Migration tool for Nextcloud local to S3 version 0.40".
+     "\n Migration tool for Nextcloud local to S3 version 0.41".
      "\n".
      "\n Reading config...";
 
@@ -218,8 +218,8 @@ if($CONFIG['objectstore']['arguments']['use_path_style']){
   $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => $proto.'://'.$CONFIG['objectstore']['arguments']['hostname'].$port.'/'.$bucket,
-    'bucket_endpoint' => true,
-    'use_path_style_endpoint' => true,
+    'bucket_endpoint' => !isset($CONFIG['objectstore']['arguments']['bucket_endpoint']) ? true : $CONFIG['objectstore']['arguments']['bucket_endpoint'],
+    'use_path_style_endpoint' => !isset($CONFIG['objectstore']['arguments']['use_path_style_endpoint']) ? true : $CONFIG['objectstore']['arguments']['use_path_style_endpoint'],
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
       'key' => $CONFIG['objectstore']['arguments']['key'],
@@ -230,7 +230,7 @@ if($CONFIG['objectstore']['arguments']['use_path_style']){
   $s3 = new S3Client([
     'version' => 'latest',
     'endpoint' => $proto.'://'.$bucket.'.'.$CONFIG['objectstore']['arguments']['hostname'].$port,
-    'bucket_endpoint' => true,
+    'bucket_endpoint' => !isset($CONFIG['objectstore']['arguments']['bucket_endpoint']) ? true : $CONFIG['objectstore']['arguments']['bucket_endpoint'],
     'region'  => $CONFIG['objectstore']['arguments']['region'],
     'credentials' => [
       'key' => $CONFIG['objectstore']['arguments']['key'],
