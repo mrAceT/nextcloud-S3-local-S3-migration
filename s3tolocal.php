@@ -26,7 +26,7 @@ $PATH_DATA_BKP  = $PATH_BASE.'/data.bkp'; // Path of a previous migration.. to s
 $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database
 
 // don't forget this one -.
-$OCC_BASE       = 'sudo -u clouduser php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+$OCC_BASE       = 'sudo -u clouduser php82 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // fill this variable ONLY when you are unable to run the 'occ' command above as the clouduser 
 $CLOUDUSER      = ''; // example 'clouduser:group';
 

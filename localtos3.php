@@ -34,7 +34,7 @@ $PATH_NEXTCLOUD = $PATH_BASE.'/public_html'; // Path of the public Nextcloud dir
 
 $PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database (you must create it yourself..)
 
-$OCC_BASE       = 'php74 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+$OCC_BASE       = 'sudo -u clouduser php82 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // don't forget this one --. (if you don't run the script as the 'clouduser', see first comment at the top)
 #$OCC_BASE       = 'sudo -u clouduser php81 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // set $TEST to 0 for LIVE!!
