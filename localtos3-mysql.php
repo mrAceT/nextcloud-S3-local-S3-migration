@@ -9,7 +9,7 @@
 /* *********************************************************************************** */
 
 # best practice: run the script as the cloud-user!!
-# sudo -u clouduser php81 -d memory_limit=1024M /var/www/vhost/nextcloud/localtos3.php
+# sudo -u clouduser php81 -d memory_limit=1024M /var/www/vhost/nextcloud/localtos3-mysql.php
 
 # runuser -u clouduser -- composer require aws/aws-sdk-php
 use Aws\S3\S3Client;
