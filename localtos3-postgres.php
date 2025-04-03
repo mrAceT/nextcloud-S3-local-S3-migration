@@ -1,6 +1,7 @@
 <?php
 /* *********************************************************************************** */
 /*        2023 code created by Eesger Toering / knoop.frl / geoarchive.eu              */
+/*          2024 forked by @mreho (Mathieu REHO) for PostgreSQL support                */
 /*        GitHub: https://github.com/mrAceT/nextcloud-S3-local-S3-migration            */
 /*     Like the work? You'll be surprised how much time goes into things like this..   */
 /*                            be my hero, support my work,                             */
@@ -9,15 +10,15 @@
 /* *********************************************************************************** */
 
 # best practice: run the script as the cloud-user!!
-# sudo -u clouduser php81 -d memory_limit=1024M /var/www/vhost/nextcloud/localtos3.php
+# sudo -u cloud-user php8.3 -d memory_limit=1024M /var/www/html/nextcloud/localtos3-postgres.php
 
-# runuser -u clouduser -- composer require aws/aws-sdk-php
+# runuser -u cloud-user -- composer require aws/aws-sdk-php
 use Aws\S3\S3Client;
 
 # uncomment this for large file uploads (Amazon advises this voor 100Mb+ files)
-#use Aws\S3\MultipartUploader;
-#$MULTIPART['threshold'] = 500; #Megabytes
-#$MULTIPART['retry']     =   0; #number of retry attempts (set to 0 for just one try)
+use Aws\S3\MultipartUploader;
+$MULTIPART['threshold'] = 512; #Megabytes
+$MULTIPART['retry']     =   1; #number of retry attempts (set to 0 for just one try)
 
 echo "\n#########################################################################################".
      "\n Migration tool for Nextcloud local to S3 version 0.41".
@@ -28,20 +29,21 @@ $PREVIEW_MAX_AGE = 0; // max age (days) of preview images (EXPERIMENTAL! 0 = no 
 $PREVIEW_MAX_DEL = 0.005; // max amount of previews to delete at a time (when < 1 & > 0 => percentage! )..
 
 // Note: Preferably use absolute path without trailing directory separators
-$PATH_BASE      = '/var/www/vhost/nextcloud'; // Path to the base of the main Nextcloud directory
+$PATH_BASE      = '/var/www/html'; // Path to the PARENT DIRECTORY of the webroot Nextcloud directory
 
-$PATH_NEXTCLOUD = $PATH_BASE.'/public_html'; // Path of the public Nextcloud directory
+$PATH_NEXTCLOUD = $PATH_BASE.'/nextcloud'; // Path of the webroot Nextcloud directory
 
-$PATH_BACKUP    = $PATH_BASE.'/bak'; // Path for backup of MySQL database (you must create it yourself..)
+$PATH_BACKUP    = $PATH_BASE.'/nextcloud_backups'; // Path for backup of PostgreSQL database (you must create it yourself..)
+$FILE_BACKUP	= 'backup.sql'; // The name of the output file for pg_dump
 
-$OCC_BASE       = 'sudo -u clouduser php82 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
-// don't forget this one --. (if you don't run the script as the 'clouduser', see first comment at the top)
-#$OCC_BASE       = 'sudo -u clouduser php81 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+$OCC_BASE       = 'php8.3 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
+// don't forget this one --. (if you don't run the script as the 'cloud-user', see first comment at the top)
+#$OCC_BASE       = 'sudo -u cloud-user php8.3 -d memory_limit=1024M '.$PATH_NEXTCLOUD.'/occ ';
 // set $TEST to 0 for LIVE!!
-// set $TEST to 1 for all data : NO db modifications, with file modifications/uplaods/removal
+// set $TEST to 1 for all data : NO db modifications, with file modifications/uploads/removal
 // set $TEST to user name for single user (migration) test
 // set $TEST to 2 for complete dry run
-$TEST = 2; //'admin';//'appdata_oczvcie123w4';
+$TEST = '2'; // '<username>' or 'appdata_<instanceId>' are also valid values
 
 // ONLY when migration is all done you can set this to 0 for the S3-consitancy checks
 $SET_MAINTENANCE = 1; // only in $TEST=0 Nextcloud will be put into maintenance mode
@@ -93,34 +95,31 @@ $PATH_DATA = preg_replace('/\/*$/','',$CONFIG['datadirectory']);
 
 echo "\nconnect to sql-database...";
 // Database setup
-$mysqli = new mysqli($CONFIG['dbhost'], $CONFIG['dbuser'], $CONFIG['dbpassword'], $CONFIG['dbname']);
-if ($CONFIG['mysql.utf8mb4']) {
-  $mysqli->set_charset('utf8mb4');
-}
+$pg_connection = pg_connect("host={$CONFIG['dbhost']} user={$CONFIG['dbuser']} password={$CONFIG['dbpassword']} dbname={$CONFIG['dbname']} options='--client_encoding=UTF8'");
 
 ################################################################################ checks #
 $LOCAL_STORE_ID = 0;
-if ($result = $mysqli->query("SELECT * FROM `oc_storages` WHERE `id` = 'local::$PATH_DATA/'")) {
-  if ($result->num_rows>1) {
+if ($result = pg_query($pg_connection, "SELECT * FROM oc_storages WHERE id = 'local::$PATH_DATA/'")) {
+  if (pg_num_rows($result)>1) {
     echo "\nERROR: Multiple 'local::$PATH_DATA', it's an accident waiting to happen!!\n";
     die;
   }
-  else if ($result->num_rows == 1) {
+  else if (pg_num_rows($result) == 1) {
     echo "\nFOUND 'local::$PATH_DATA', good. ";
-    $row = $result->fetch_assoc();
+    $row = pg_fetch_assoc($result);
     $LOCAL_STORE_ID = $row['numeric_id']; // for creative rename command..
-    echo "\nThe local store  id is:$LOCAL_STORE_ID";
+    echo "\nThe local store id is:$LOCAL_STORE_ID";
   } else {
     echo "\nWARNING: no 'local::$PATH_DATA' found, therefor no sync local data > S3!\n";
   }
 }
 $OBJECT_STORE_ID = 0;
-if ($result = $mysqli->query("SELECT * FROM `oc_storages` WHERE `id` LIKE 'object::store:amazon::".$CONFIG['objectstore']['arguments']['bucket']."'")) {
-  if ($result->num_rows>1) {
+if ($result = pg_query($pg_connection, "SELECT * FROM oc_storages WHERE id LIKE 'object::store:amazon::".$CONFIG['objectstore']['arguments']['bucket']."'")) {
+  if (pg_num_rows($result)>1) {
     echo "\nMultiple 'object::store:amazon::".$CONFIG['objectstore']['arguments']['bucket']."' clean this up, it's an accident waiting to happen!!\n\n";
     die;
   }
-  else if ($result->num_rows == 0) {
+  else if (pg_num_rows($result) == 0) {
     if (empty($CONFIG['objectstore'])) {
       echo "\nERROR: No 'object::store:' & NO S3 storage defined\n\n";
       die;
@@ -131,18 +130,18 @@ if ($result = $mysqli->query("SELECT * FROM `oc_storages` WHERE `id` LIKE 'objec
   }
   else {
     echo "\nFOUND 'object::store:amazon::".$CONFIG['objectstore']['arguments']['bucket']."', OK";
-    $row = $result->fetch_assoc();
+    $row = pg_fetch_assoc($result);
     $OBJECT_STORE_ID = $row['numeric_id']; // for creative rename command..
     echo "\nThe object store id is:$OBJECT_STORE_ID";
     
-    $result = $mysqli->query("SELECT `fileid` FROM `oc_filecache` WHERE `storage` = ".$OBJECT_STORE_ID);
-    if ( $result->num_rows > 0 ) {
-      echo "\n\nWARNING: if this is for a full migration remove all data with `storage` = $OBJECT_STORE_ID in your `oc_filecache` !!!!\n";
+    $result = pg_query($pg_connection, "SELECT fileid FROM oc_filecache WHERE storage = ".$OBJECT_STORE_ID);
+    if ( pg_num_rows($result) > 0 ) {
+      echo "\n\nWARNING: if this is for a full migration remove all data with storage = $OBJECT_STORE_ID in your oc_filecache !!!!\n";
     }
     
   }
 }
-$result->free_result();
+pg_free_result($result);
 
 echo "\n".
      "\n######################################################################################### ".$TEST;
@@ -183,15 +182,26 @@ if (empty($TEST)) {
 echo "\ndatabase backup...";
 if (!is_dir($PATH_BACKUP)) { echo "\$PATH_BACKUP folder does not exist\n"; die; }
 
-$process = shell_exec('mysqldump --host='.$CONFIG['dbhost'].
-                               ' --user='.(empty($SQL_DUMP_USER)?$CONFIG['dbuser']:$SQL_DUMP_USER).
-                               ' --password='.escapeshellcmd( empty($SQL_DUMP_PASS)?$CONFIG['dbpassword']:$SQL_DUMP_PASS ).' '.$CONFIG['dbname'].
-                               ' > '.$PATH_BACKUP . DIRECTORY_SEPARATOR . 'backup.sql');
-if (strpos(' '.strtolower($process), 'error:') > 0) {
-  echo "sql dump error\n";
+$pg_dump = array(
+	'pg_dump',
+	'-h',
+	$CONFIG['dbhost'],
+	'-U',
+	empty($SQL_DUMP_USER) ? $CONFIG['dbuser'] : $SQL_DUMP_USER,
+	$CONFIG['dbname'],
+	'-f',
+	$PATH_BACKUP . DIRECTORY_SEPARATOR . $FILE_BACKUP
+);
+putenv("PGPASSWORD=" . (empty($SQL_DUMP_PASS) ? $CONFIG['dbpassword'] : $SQL_DUMP_PASS));
+
+exec(join(' ', $pg_dump), $cmdout, $cmdresult);
+
+if ($cmdresult > 0) {
+  echo "sql dump error\n\n";
+  echo "$cmdout\n";
   die;
 } else {
-  echo "\n(to restore: mysql -u ".(empty($SQL_DUMP_USER)?$CONFIG['dbuser']:$SQL_DUMP_USER)." -p ".$CONFIG['dbname']." < backup.sql)\n";
+  echo "\n(to restore: pg_restore -U ".(empty($SQL_DUMP_USER)?$CONFIG['dbuser']:$SQL_DUMP_USER)." -W -d ".$CONFIG['dbname']." < ".$FILE_BACKUP.")\n";
 }
 
 echo "\nbackup config.php...";
@@ -267,28 +277,27 @@ $PREVIEW_DEL = [0,0];
 $PREVIEW_REM = [0,0];
 $PREVIEW_1YR = [0,0];
 
-if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`size`, `FC`.`storage_mtime` FROM".
-                             " `oc_filecache` as `FC`,".
-                             " `oc_storages`  as `ST`,".
-                             " `oc_mimetypes` as `MT`".
-                             " WHERE 1".
-                              " AND `FC`.`path`    LIKE 'appdata_%'".
-                              " AND `FC`.`path`    LIKE '%/preview/%'".
-#                              " AND `ST`.`id` LIKE 'object::%'".
-#                              " AND `FC`.`fileid` = '".substr($object['Key'],8)."'". # should be only one..
-
-                              " AND `ST`.`numeric_id` = `FC`.`storage`".
-                              " AND `FC`.`mimetype`   = `MT`.`id`".
-                              " AND `MT`.`mimetype`  != 'httpd/unix-directory'".
-                             " ORDER BY `FC`.`storage_mtime` ASC")) {
-  echo "\nERROR: query pos 1";
+if (!$result = pg_query($pg_connection, "SELECT ST.id, FC.fileid, FC.path, FC.size, FC.storage_mtime FROM".
+                             " oc_filecache as FC,".
+                             " oc_storages  as ST,".
+                             " oc_mimetypes as MT".
+                             " WHERE ".
+                             "     FC.path    LIKE 'appdata_%'".
+                             " AND FC.path    LIKE '%/preview/%'".
+#                            " AND ST.id      LIKE 'object::%'".
+#                            " AND FC.fileid     = '".substr($object['Key'],8)."'". # should be only one..
+                             " AND ST.numeric_id = FC.storage".
+                             " AND FC.mimetype   = MT.id".
+                             " AND MT.mimetype  != 'httpd/unix-directory'".
+                             " ORDER BY FC.storage_mtime ASC")) {
+  echo "\nERROR: query pos 1\n";
   die;
 } else {
   if ($PREVIEW_MAX_DEL > 0
    && $PREVIEW_MAX_DEL < 1) {
-    $PREVIEW_MAX_DEL*= $result->num_rows;
+    $PREVIEW_MAX_DEL*= pg_num_rows($result);
   }
-  while ($row = $result->fetch_assoc()) {
+  while ($row = pg_fetch_assoc($result)) {
     // Determine correct path
     if (substr($row['id'], 0, 13) == 'object::user:') {
       $path = $PATH_DATA . DIRECTORY_SEPARATOR . substr($row['id'], 13) . DIRECTORY_SEPARATOR . $row['path'];
@@ -309,7 +318,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
           unlink($path);
         }
         $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
-        $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+        pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$row['fileid']);
       } else {
         echo "\nfileID ".$matches[2]." has a preview older then the set \$PREVIEW_MAX_AGE";
       }
@@ -318,14 +327,14 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
     } else {
       if (preg_match('/\/preview\/([a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/[a-f0-9]\/)?([0-9]+)\/[^\/]+$/',$path,$matches)) {
         #echo "check fileID".$matches[2].' ';
-        $result2 = $mysqli->query("SELECT `storage` FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$matches[2]);
-        if ($result2->num_rows == 0 ) {
+        $result2 = pg_query($pg_connection, "SELECT storage FROM oc_filecache WHERE oc_filecache.fileid = ".$matches[2]);
+        if (pg_num_rows($result2) == 0 ) {
           if (empty($TEST)) {
             if(file_exists($path) && is_file($path)){
               unlink($path);
             }
             $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
-            $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+            pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$row['fileid']);
           } else {
             echo "\nfileID ".$matches[2]." has a preview, but the source file does not exist, would delete the preview (fileID ".$row['fileid'].")";
           }
@@ -339,12 +348,12 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
           $PREVIEW_NOW[1] += $row['size'];
           $PREVIEW_NOW[0]++;
         }
-        $result2->free_result();
+        pg_free_result($result2);
       } else {
         echo "\n\nERROR:  path format not as expected (".$row['fileid']." : $path)";
         echo "\n\tremove the database entry..";
         if (empty($TEST)) {
-          $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+          pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$row['fileid']);
         }
         else {
           echo " ONLY with \$TEST = 0 the DB entry will be removed!";
@@ -354,7 +363,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
     }
     
   }
-  $result->free_result();
+  pg_free_result($result);
 }
 
 if ($PREVIEW_DEL[0] > 0
@@ -414,26 +423,26 @@ else {
       die;
     }
     
-    if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size`, `FC`.`storage` FROM".
-                                 " `oc_filecache` AS `FC`,".
-                                 " `oc_storages`  AS `ST`,".
-                                 " `oc_mimetypes` AS `MT`".
-                                 " WHERE 1".
-   #                              " AND st.id LIKE 'object::%'".
-                                  " AND `FC`.`fileid` = '".substr($object['Key'],8)."'". # should be only one..
+    if (!$result = pg_query($pg_connection, "SELECT ST.id, FC.fileid, FC.path, FC.storage_mtime, FC.size, FC.storage FROM".
+                                 " oc_filecache AS FC,".
+                                 " oc_storages  AS ST,".
+                                 " oc_mimetypes AS MT".
+                                 " WHERE ".
+                                 "     FC.fileid     = '".substr($object['Key'],8)."'". # should be only one..
+#                                " AND ST.id      LIKE 'object::%'".
 
-                                  " AND `ST`.`numeric_id` = `FC`.`storage`".
-                                  " AND `FC`.`mimetype`   = `MT`.`id`".
-                                  " AND `MT`.`mimetype`  != 'httpd/unix-directory'".
-                                 " ORDER BY `FC`.`path` ASC")) {
-      echo "\nERROR: query pos 2";
+                                 " AND ST.numeric_id = FC.storage".
+                                 " AND FC.mimetype   = MT.id".
+                                 " AND MT.mimetype  != 'httpd/unix-directory'".
+                                 " ORDER BY FC.path ASC")) {
+      echo "\nERROR: query pos 2\n";
       die;
     } else {
-      if ($result->num_rows>1) {
+      if (pg_num_rows($result)>1) {
         echo "\ndouble file found in oc_filecache, this can not be!?\n";
         die;
       }
-      else if ($result->num_rows == 0) { # in s3, not in db, remove from s3
+      else if (pg_num_rows($result) == 0) { # in s3, not in db, remove from s3
         if ($showinfo) { echo $infoLine."\nID:".$object['Key']."\ton S3, but not in oc_filecache, remove..."; }
         if (!empty($TEST)) { #  && $TEST == 2
           echo ' not removed ($TEST != 0)';
@@ -445,7 +454,7 @@ else {
         $S3_removed[1]+=$object['Size'];
       }
       else { # one match, up to date?
-        $row = $result->fetch_assoc();
+        $row = pg_fetch_assoc($result);
 
         // Determine correct path
         if (substr($row['id'], 0, 13) == 'object::user:') {
@@ -469,7 +478,7 @@ else {
             if ($row['storage_mtime'] < filemtime($path) ) {
               if ($showinfo) { echo $infoLine."\nID:".$object['Key']."\ton S3, but is older then local, upload..."; }
               if (!empty($TEST) && $TEST == 2) {
-                echo ' not uploaded ($TEST = 2)';
+                echo ' not uploaded ($TEST = 2)' . "\n";
               } else {
                 $putData = [
                   'Key' => 'urn:oid:'.$row['fileid'],
@@ -503,7 +512,8 @@ else {
         }
       }
       // Update progress
-      $new = sprintf('%.2f',$current/$complete*100).'% (now at user '.$user.')';
+      $new = date("Y-m-d H:i:s - ") . sprintf('%.2f',$current/$complete*100).'% (now at user '.$user.')' . "\n";
+
       if ($prev != $new && !$showinfo) {
         echo str_repeat(chr(8) , strlen($prev) );
         $new.= (strlen($prev)<=strlen($new))? '' : str_repeat(' ' , strlen($prev)-strlen($new) );
@@ -511,7 +521,7 @@ else {
         echo $prev;
       }
     }
-    $result->free_result();
+    pg_free_result($result);
   }
   if (!$showinfo) {
     echo str_repeat(chr(8) , strlen($prev) );
@@ -535,34 +545,33 @@ echo "\n".
      "\n#########################################################################################".
      "\ncheck files in oc_filecache... ";
 
-if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC`.`storage_mtime`, `FC`.`size`, `FC`.`storage` FROM".
-                             " `oc_filecache` AS `FC`,".
-                             " `oc_storages`  AS `ST`,".
-                             " `oc_mimetypes` AS `MT`".
-                             " WHERE 1".
-#                              " AND fc.size      != 0".
-#                              " AND st.id LIKE 'object::%'".
-#                              " AND fc.fileid = '".substr($object['Key'],8)."'". # should be only one..
-
-                              " AND `ST`.`numeric_id` = `FC`.`storage`".
-                              " AND `FC`.`mimetype`   = `MT`.`id`".
-                              " AND `MT`.`mimetype`  != 'httpd/unix-directory'".
-                             " ORDER BY `ST`.`id`, `FC`.`fileid` ASC")) {
-  echo "\nERROR: query pos 3\n\n";
+if (!$result = pg_query($pg_connection, "SELECT ST.id, FC.fileid, FC.path, FC.storage_mtime, FC.size, FC.storage FROM".
+                             " oc_filecache AS FC,".
+                             " oc_storages  AS ST,".
+                             " oc_mimetypes AS MT".
+                             " WHERE ".
+                             "     ST.numeric_id = FC.storage".
+                             " AND FC.mimetype   = MT.id".
+                             " AND MT.mimetype  != 'httpd/unix-directory'".
+#                            " AND FC.size      != 0".
+#                            " AND ST.id      LIKE 'object::%'".
+#                            " AND FC.fileid     = '".substr($object['Key'],8)."'". # should be only one..
+                             " ORDER BY ST.id, FC.fileid ASC")) {
+  echo "\nERROR: query pos 3\n";
   die;
 } else {
   // Init progress
-  $complete = $result->num_rows;
+  $complete = pg_num_rows($result);
   $prev     = '';
   $current  = 0;
 
-  echo "\nNumber of objects in oc_filecache: ".$result->num_rows.' ';
+  echo "\nNumber of objects in oc_filecache: ".pg_num_rows($result).' ';
   
   $showinfo = !empty($TEST);
   $showinfo = 0;
   
   $LOCAL_ADDED = [0,0];
-  while ($row = $result->fetch_assoc()) {
+  while ($row = pg_fetch_assoc($result)) {
     $current++;
 
     if (empty($objectIDs[ $row['fileid'] ]) ) {
@@ -585,7 +594,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
       if (is_numeric($TEST) || $TEST == $user ) {
         if(file_exists($path) && is_file($path)){
           if (!empty($TEST) && $TEST == 2) {
-            echo ' not uploaded ($TEST = 2)';
+            echo ' not uploaded ($TEST = 2)' . "\n";
           } else {
             $putConfig = [
                'Key' => 'urn:oid:'.$row['fileid'],
@@ -608,7 +617,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
         } else {
           echo "\n".$path." (id:".$row['fileid'].") DOES NOT EXIST?!\n";
           if (empty($TEST)) {
-            $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+            pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$row['fileid']);
             echo "\t".'removed ($TEST = 0)'."\n";
           } else {
             echo "\t".'not removed ($TEST != 0)'."\n";
@@ -621,7 +630,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
       if ($showinfo) { echo "\n"."\t".$row['fileid']."\t".$row['path']."\t"."SKIP";}
     }
     // Update progress
-    $new = sprintf('%.2f',$current/$complete*100).'% (now at user '.$user.')';
+    $new = date("Y-m-d H:i:s - ") . sprintf('%.2f',$current/$complete*100).'% (now at user '.$user.')' . "\n";
 
     if ($prev != $new && !$showinfo) {
       echo str_repeat(chr(8) , strlen($prev) );
@@ -630,7 +639,7 @@ if (!$result = $mysqli->query("SELECT `ST`.`id`, `FC`.`fileid`, `FC`.`path`, `FC
       echo $prev;
     }
   }
-  $result->free_result();
+  pg_free_result($result);
   if (!$showinfo) {
     echo str_repeat(chr(8) , strlen($prev) );
     $new = ' DONE ';
@@ -647,22 +656,22 @@ echo "\n". # inspiration source: https://github.com/otherguy/nextcloud-cleanup/b
      "\ncheck for canceled uploads in oc_filecache...".
      "\n=> EXPERIMENTAL, I have not had this problem, so can not test.. => check only!";
 
-if (!$result = $mysqli->query("SELECT `oc_filecache`.`fileid`, `oc_filecache`.`path`, `oc_filecache`.`parent`, `oc_storages`.`id` AS `storage`, `oc_filecache`.`size`".
-                             " FROM `oc_filecache`".
-                             " LEFT JOIN `oc_storages` ON `oc_storages`.`numeric_id` = `oc_filecache`.`storage`".
-                             " WHERE `oc_filecache`.`parent` IN (".
-                             "   SELECT `fileid`".
-                             "   FROM `oc_filecache`".
-                             "   WHERE `parent` IN (SELECT fileid FROM `oc_filecache` WHERE `path`='uploads')".
-                             "   AND `storage_mtime` < UNIX_TIMESTAMP(NOW() - 24 * 60 * 60)".
-                             " ) AND `oc_storages`.`available` = 1")) {
+if (!$result = pg_query($pg_connection, "SELECT oc_filecache.fileid, oc_filecache.path, oc_filecache.parent, oc_storages.id AS storage, oc_filecache.size".
+                             " FROM oc_filecache".
+                             " LEFT JOIN oc_storages ON oc_storages.numeric_id = oc_filecache.storage".
+                             " WHERE oc_filecache.parent IN (".
+                             "   SELECT fileid".
+                             "   FROM oc_filecache".
+                             "   WHERE parent IN (SELECT fileid FROM oc_filecache WHERE path='uploads')".
+                             "   AND storage_mtime < EXTRACT(EPOCH FROM NOW() - INTERVAL '24 hours')".
+                             " ) AND oc_storages.available = 1")) {
   echo "\nERROR: query pos 4";
   die;
 } else {
   $S3_removed = [0,0];
   $S3_PARENTS = [];
 
-  while ($row = $result->fetch_assoc()) {
+  while ($row = pg_fetch_assoc($result)) {
     echo "\nCanceled upload: ".$row['path']." ( ".$row['size']." bytes)";
     $S3_removed[0]++;
     $S3_removed[1]+=$row['size'];
@@ -676,7 +685,7 @@ if (!$result = $mysqli->query("SELECT `oc_filecache`.`fileid`, `oc_filecache`.`p
     } else {
       $result_s3 =  S3del($s3, $bucket, 'urn:oid:'.$row['fileid']);
       if ($showinfo) { echo 'S3del:'.$result_s3; }
-      $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$row['fileid']);
+      pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$row['fileid']);
     }
   }
   if ($S3_removed[0] > 0 ) {
@@ -692,7 +701,7 @@ if (!$result = $mysqli->query("SELECT `oc_filecache`.`fileid`, `oc_filecache`.`p
       if (!empty($TEST) && $TEST == 2) {
         echo ' not removed ($TEST = 2)';
       } else {
-        $mysqli->query("DELETE FROM `oc_filecache` WHERE `oc_filecache`.`fileid` = ".$s3_parent);
+        pg_query($pg_connection, "DELETE FROM oc_filecache WHERE oc_filecache.fileid = ".$s3_parent);
         echo ' removed';
       }
     }
@@ -704,18 +713,18 @@ if (empty($TEST)) {
   $dashLine = "\n".
               "\n#########################################################################################";
               
-  $mysqli->query("UPDATE `oc_storages` SET `id`=CONCAT('object::user:', SUBSTRING_INDEX(`oc_storages`.`id`,':',-1)) WHERE `oc_storages`.`id` LIKE 'home::%'");
-  $UpdatesDone = $mysqli->affected_rows;
+  $result = pg_query($pg_connection, "UPDATE oc_storages SET id = 'object::user:' || split_part(id, ':', -1) WHERE id LIKE 'home::%'");
+  $UpdatesDone = pg_affected_rows($result);
   
   //rename command
   if ($LOCAL_STORE_ID == 0
    || $OBJECT_STORE_ID== 0) { // standard rename
-    $mysqli->query("UPDATE `oc_storages` SET `id`='object::store:amazon::".$bucket."' WHERE `oc_storages`.`id` LIKE 'local::".$PATH_DATA."/'");
-    $UpdatesDone.= '/'.$mysqli->affected_rows;
+    $result = pg_query($pg_connection, "UPDATE oc_storages SET id='object::store:amazon::".$bucket."' WHERE oc_storages.id LIKE 'local::".$PATH_DATA."/'");
+    $UpdatesDone.= '/'.pg_affected_rows($result);
   } else {
-    $mysqli->query("UPDATE `oc_filecache` SET `storage` = '".$OBJECT_STORE_ID."' WHERE `storage` = '".$LOCAL_STORE_ID."'");
-    $UpdatesDone.= '/'.$mysqli->affected_rows;
-    #$mysqli->query("DELETE FROM `oc_storages` WHERE `oc_storages`.`numeric_id` = ".$OBJECT_STORE_ID);
+    $result = pg_query($pg_connection, "UPDATE oc_filecache SET storage = '".$OBJECT_STORE_ID."' WHERE storage = '".$LOCAL_STORE_ID."'");
+    $UpdatesDone.= '/'.pg_affected_rows($result);
+    #pg_query($pg_connection, "DELETE FROM oc_storages WHERE oc_storages.numeric_id = ".$OBJECT_STORE_ID);
   }
   if ($UpdatesDone == '0/0' ) {
 #    echo $dashLine." no modefications needed";
@@ -724,8 +733,8 @@ if (empty($TEST)) {
   }
 
   foreach ($users as $key => $value) {
-    $mysqli->query("UPDATE `oc_mounts` SET `mount_provider_class` = REPLACE(`mount_provider_class`, 'LocalHomeMountProvider', 'ObjectHomeMountProvider') WHERE `user_id` = '".$key."'");
-    if ($mysqli->affected_rows == 1) {
+    $result = pg_query($pg_connection, "UPDATE oc_mounts SET mount_provider_class = REPLACE(mount_provider_class, 'LocalHomeMountProvider', 'ObjectHomeMountProvider') WHERE user_id = '".$key."'");
+    if (pg_affected_rows($result) == 1) {
       echo $dashLine."\n-Changed mount provider class off ".$key." from home to object";
       $dashLine = '';
     }
@@ -844,7 +853,7 @@ function S3list($s3, $bucket, $maxIteration = 10000000) {
 #########################################################################################
 function S3put($s3, $bucket, $vars = array() ) {
   #return 'dummy';
-  if (is_string($vars)      ) {
+  if (is_string($vars)) {
     if (file_exists($vars)) {
       $vars = array('SourceFile' => $vars);
     }
@@ -871,7 +880,7 @@ function S3put($s3, $bucket, $vars = array() ) {
         $result = $uploader->upload();
     } else {
       if (filesize($vars['SourceFile']) > 2*1024*1024*1024) {
-        echo "\n".'WARNING: file \''.$vars['SourceFile'].'\' is larger then 2 Gb, consider enabeling \'MultipartUploader\'';
+        echo "\nWARNING: file {$vars['SourceFile']} is larger then 2 GB, consider enabling 'MultipartUploader'\n";
       }
       $result = $s3->putObject($vars);
     }
@@ -885,13 +894,17 @@ function S3put($s3, $bucket, $vars = array() ) {
     }
   } catch (MultipartUploadException | S3Exception | Exception $e) {
     if (!empty($GLOBALS['MULTIPART']['retry'])) {
-      if (!isset($GLOBALS['MULTIPART']['retry_count'])) { $GLOBALS['MULTIPART']['retry_count'] = 1; }
-      else                                              { $GLOBALS['MULTIPART']['retry_count']++;   }
-      if ($GLOBALS['MULTIPART']['retry_count'] <= $GLOBALS['MULTIPART']['retry']) {
+
+      if (!isset($GLOBALS['MULTIPART']['retry_count']))
+        $GLOBALS['MULTIPART']['retry_count'] = 1;
+      else
+	$GLOBALS['MULTIPART']['retry_count']++;
+
+      if ($GLOBALS['MULTIPART']['retry_count'] <= $GLOBALS['MULTIPART']['retry'])
         return S3put($s3, $bucket, $vars);
-      } else {
+      else
         return 'ERROR: (after '.$GLOBALS['MULTIPART']['retry'].' retries)' . $e->getMessage();
-      }
+
     } else {
       return 'ERROR: ' . $e->getMessage();
     }

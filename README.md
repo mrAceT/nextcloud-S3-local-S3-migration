@@ -5,6 +5,9 @@ Script for migrating Nextcloud primary storage from S3 to local to S3 storage
 <h1 align="center">:cloud: to :floppy_disk: to :cloud:</h1>
 
 ## S3 Best practice: start clean
+
+> **_NOTE:_**  Follow these steps only for non already existant Nextcloud installations (POC). If you already have an installed instance of Nextcloud, skip directly to the wanted section below.
+
 It is always best to start with the way you want to go. [Nextcloud](https://nextcloud.com/) default for the primary storage is 'local'.
 To start out with 'S3' from the start these are the steps I took:
 1. download [setup-nextcloud.php](https://github.com/nextcloud/web-installer/blob/master/setup-nextcloud.php)
@@ -15,17 +18,28 @@ $CONFIG = array (
   'objectstore' => array(
           'class' => 'OC\\Files\\ObjectStore\\S3',
           'arguments' => array(
-                  'bucket' => '**bucket**', // your bucket name
-                  'autocreate' => true,
-                  'key' => '**key**', // your key
-                  'secret' => '**secret**', // your secret
-                  'hostname' => '**host**', // your host
-                  'port' => 443,
-                  'use_ssl' => true,
-                  'region' => '**region**', // your region
-                  'use_path_style' => false
-// required for some non Amazon S3 implementations
-// 'use_path_style' => true
+                  'hostname'               => '**host**', // your host
+                  'region'                 => '**region**', // your region
+                  'bucket'                 => '**bucket**', // your bucket name
+                  'key'                    => '**key**', // your key
+                  'secret'                 => '**secret**', // your secret
+
+                  // You can remove this line if you already created your S3 bucket
+                  'autocreate'             => true,
+
+                  // Can be required for self-hosted S3 implementations
+                  //'port'                 => 443, // default
+                  //'use_ssl'              => true, // default
+                  //'use_path_style'       => true, // false by default
+
+                  // Check your S3 provider policies before setting this
+                  // Can improve S3 performance, defaults to 5
+                  //'concurrency'          => 50,
+
+                  // Uncomment this only when migration is done
+                  // Can also improve Nextcloud speed
+                  //'verify_bucket_exists' => false
+
           ),
   ),
 );
@@ -80,18 +94,21 @@ v0.30 first github release
 ## local to S3
 It will transfer files from **local** based primary storage to a **S3** primary storage.
 
+There are two versions of this file, `localtos3-mysql.php` and `localtos3-postgres.php`, choose the one you need :)
+
 The basics were inspired upon the script s3tolocal.php (mentioned above), but there are **a lot** of differences..
 
 Before you start, it is probably wise to set $DO_FILES_CLEAN (occ files:cleanup)
 and $DO_FILES_SCAN (occ files:scan --all) to '1' once, let the 'Nextcloud' do some checking.. then you'll start out as clean as possible
 
 1. the only 'external thing' you need is 'aws/aws-sdk-php' (runuser -u clouduser -- composer require aws/aws-sdk-php)
-2. place 'storage.config.php' in the same folder as localtos3.php (and set your S3 credentials!)
-3. set & check all the config variables in the beginning of the script!
-4. start with the highest $TEST => 2 (complete dry run, just checks en dummy uploads etc. NO database changes what so ever!)
-5. set $TEST to a 'small test user", upload the data to S3 for only that user (NO database changes what so ever!)
-6. set $TEST to 1 and run the script yet again, upload (**and check**) all the data to S3 (NO database changes what so ever!)
-7. set $TEST to 0 and run the script again (this is LIVE, nextcloud will be set into maintenance:mode --on while working ! **database changes!**)
+2. place `storage.config.php` in the same folder as `localtos3-<database>.php` (and set your S3 credentials!)
+   **Do NOT place `storage.config.php` in your Nextcloud config directory** as it will instantly create unwanted database entries !!
+4. set & check all the config variables in the beginning of the script!
+5. start with the highest $TEST => 2 (complete dry run, just checks en dummy uploads etc. NO database changes what so ever!)
+6. set $TEST to a 'small test user", upload the data to S3 for only that user (NO database changes what so ever!)
+7. set $TEST to 1 and run the script yet again, upload (**and check**) all the data to S3 (NO database changes what so ever!)
+8. set $TEST to 0 and run the script again (this is LIVE, nextcloud will be set into maintenance:mode --on while working ! **database changes!**)
 
 **DO NOT** skip ahead and go live ($TEST=0) as the first step.. then your downtime will be very long!
 
@@ -112,7 +129,7 @@ When you
 3. **optionally** set $SET_MAINTENANCE to 0
 4. (have set/checked all the other variables..)
 
-Then the script 'localtos3.php' will:
+Then the script `localtos3-<database>.php` will:
 - look for entries in S3 and not in the database and vice versa **and remove them**.
 This can happen sometimes upon removing an account, preview files might not get removed.. stuff like that..
 
