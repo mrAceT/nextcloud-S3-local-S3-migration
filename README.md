@@ -157,10 +157,13 @@ v0.31 first github release
 
 # I give to you, you..
 
-I built this to be able to migrate if the one or the other is needed for what ever reason I could have in the future.
-You might have that same reason, so here it is!
-**Like the work?** You'll be surprised how much time goes into things like this.. 
+Nextcloud became an important part of my GeoArchive project. It is now an essential part of the backbone of my image library (DAM).\
+**Take a look**: [general info Geoarchive >>](https://www.geoarchief.eu)  /  [image library 'in action' >>](https://www.geoarchief.nl/C001)\
 
+I built this to be able to migrate if the one or the other is needed for what ever reason I could have in the future.\
+My GeoARchive project also contains FOSS software, so I think it's only fair to give something back every now and then and you might have the need fot this tool also, so here it is!
+
+**Like the work?** You'll be surprised how much time goes into things like this..\
 Be my hero, think about the time this script saved you, and (offcourse) how happy you are now that you migrated this smoothly.
 Support my work, buy me a cup of coffee, give what its worth to you, or give me half the time this script saved you ;)
 - [donate with ko-fi](https://ko-fi.com/mrAceT)
